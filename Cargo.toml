@@ -1,9 +1,13 @@
 [package]
-name = "sl"
-version = "5.0.3"
+name = "sl-rust"
+version = "1.0.0"
 edition = "2024"
 description = "SL - An ASCII art train animation"
-authors = ["oligamiq <nziq53@gmail.com>", "Toyoda Masashi <mtoyoda@acm.org>", "Copilot <223556219+Copilot@users.noreply.github.com>"]
+authors = [
+    "oligamiq <nziq53@gmail.com>",
+    "Toyoda Masashi <mtoyoda@acm.org>",
+    "Copilot <223556219+Copilot@users.noreply.github.com>",
+]
 
 [target.'cfg(not(target_os = "wasi"))'.dependencies]
 crossterm = "0.27"
