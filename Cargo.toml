@@ -1,0 +1,17 @@
+[package]
+name = "sl"
+version = "5.0.3"
+edition = "2021"
+description = "SL - An ASCII art train animation"
+authors = ["Toyoda Masashi <mtoyoda@acm.org>", "Copilot <223556219+Copilot@users.noreply.github.com>"]
+
+[dependencies]
+crossterm = "0.27"
+
+[[bin]]
+name = "sl"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
