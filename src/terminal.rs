@@ -1,4 +1,6 @@
 use std::io::{self, Write};
+
+#[cfg(not(target_os = "wasi"))]
 use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,7 +84,7 @@ mod sys {
     pub fn init() -> io::Result<(u16, u16)> {
         let w = std::env::var("COLUMNS").ok().and_then(|v| v.parse().ok()).unwrap_or(80);
         let h = std::env::var("LINES").ok().and_then(|v| v.parse().ok()).unwrap_or(24);
-        
+
         let mut stdout = io::stdout();
         write!(stdout, "\x1B[?1049h\x1B[?25l\x1B[2J")?;
         stdout.flush()?;
