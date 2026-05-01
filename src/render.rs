@@ -72,11 +72,10 @@ fn build_d51(frame: &mut String, terminal: &Terminal, x: i32, pattern: usize, co
     }
 
     // Draw coal
-    let coal_y_offset = D51_STR.len() as i32 + D51_WHL[pattern].len() as i32;
     for (i, line) in D51_COAL.iter().enumerate() {
-        let y = y_base + coal_y_offset + i as i32;
+        let y = y_base + i as i32;
         if y >= 0 && y < terminal.height() as i32 {
-            add_line_to_frame(frame, x, y, line, terminal);
+            add_line_to_frame(frame, x + 53, y, line, terminal);
         }
     }
 }
@@ -113,11 +112,10 @@ fn build_c51(frame: &mut String, terminal: &Terminal, x: i32, pattern: usize, co
     }
 
     // Draw coal
-    let coal_y_offset = C51_STR.len() as i32 + C51_WHL[pattern].len() as i32;
     for (i, line) in C51_COAL.iter().enumerate() {
-        let y = y_base + coal_y_offset + i as i32;
+        let y = y_base + i as i32;
         if y >= 0 && y < terminal.height() as i32 {
-            add_line_to_frame(frame, x, y, line, terminal);
+            add_line_to_frame(frame, x + 55, y, line, terminal);
         }
     }
 }

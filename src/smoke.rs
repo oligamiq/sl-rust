@@ -51,9 +51,10 @@ pub fn add_smoke(x: i32, y: i32) {
 pub fn update_smoke() {
     SMOKE.with(|s| {
         let mut smoke = s.borrow_mut();
-        // Particles should be updated EVERY frame to show smooth movement
+        if !smoke.should_generate {
+            return;
+        }
         for particle in &mut smoke.particles {
-            // C版と同じ: パターンに応じた移動を適用
             use crate::train::ascii::{SMOKE_DY, SMOKE_DX};
             
             let dy = SMOKE_DY[particle.pattern];
@@ -63,7 +64,6 @@ pub fn update_smoke() {
             particle.x += dx;
             particle.pattern += 1;
         }
-        // C版と同じ: 16 フレーム（pattern 0-15）で消滅
         smoke.particles.retain(|p| p.pattern < 16);
     });
 }

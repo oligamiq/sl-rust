@@ -71,20 +71,26 @@ impl Terminal {
     }
 
     pub fn check_input(&self) -> io::Result<InputAction> {
-        if self.poll_event(Duration::from_millis(0))? {
+        let mut action = InputAction::None;
+        while self.poll_event(Duration::from_millis(0))? {
             if let Event::Key(key_event) = self.read_event()? {
-                match key_event.code {
-                    KeyCode::Char(' ') | KeyCode::Char('p') | KeyCode::Char('P') => {
-                        return Ok(InputAction::Pause);
+                if key_event.kind == crossterm::event::KeyEventKind::Press {
+                    match key_event.code {
+                        KeyCode::Char(' ') | KeyCode::Char('p') | KeyCode::Char('P') => {
+                            action = InputAction::Pause;
+                        }
+                        KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                            action = InputAction::Quit;
+                        }
+                        KeyCode::Char('c') if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                            action = InputAction::Quit;
+                        }
+                        _ => {}
                     }
-                    KeyCode::Char('c') | KeyCode::Esc => {
-                        return Ok(InputAction::Quit);
-                    }
-                    _ => {}
                 }
             }
         }
-        Ok(InputAction::None)
+        Ok(action)
     }
 }
 
