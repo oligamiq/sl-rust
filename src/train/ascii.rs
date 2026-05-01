@@ -188,8 +188,8 @@ pub const MAN: [&str; 2] = [
     "   | ",
 ];
 
-// C版互換の smoke パターン（2種類 x 16段階）
-// kind=0: 通常の smoke, kind=1: accident mode の smoke
+// C-compatible smoke patterns (2 kinds x 16 steps)
+// kind=0: normal smoke, kind=1: accident mode smoke
 pub const SMOKE_PATTERN: [[&str; 16]; 2] = [
     [
         // kind=0: normal smoke
@@ -231,7 +231,7 @@ pub const SMOKE_PATTERN: [[&str; 16]; 2] = [
     ],
 ];
 
-// C版と同じ dy/dx 配列（パターンごとの移動）
+// C-compatible dy/dx arrays (movement per pattern)
 pub const SMOKE_DY: [i32; 16] = [
     2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 ];
