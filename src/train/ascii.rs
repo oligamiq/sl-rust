@@ -5,6 +5,11 @@ pub const D51_FUNNEL: usize = 7;
 pub const D51_LENGTH: usize = 83;
 pub const D51_PATTERNS: usize = 6;
 
+pub const LOGO_HEIGHT: usize = 6;
+pub const LOGO_FUNNEL: usize = 4;
+pub const LOGO_LENGTH: usize = 84;
+pub const LOGO_PATTERNS: usize = 6;
+
 pub const D51_STR: [&str; 7] = [
     "      ====        ________                ___________ ",
     "  _D _|  |_______/        \\__I_I_____===__|_________| ",
@@ -186,10 +191,74 @@ pub const MAN: [&str; 2] = [
     "   | ",
 ];
 
-pub const SMOKE_PATTERN: [&str; 5] = [
-    "*    ",
-    ".*.. ",
-    " .*..",
-    " .. .",
-    "  .  ",
+// C版互換の smoke パターン（2種類 x 16段階）
+// kind=0: 通常の smoke, kind=1: accident mode の smoke
+pub const SMOKE_PATTERN: [[&str; 16]; 2] = [
+    [
+        // kind=0: normal smoke
+        "(   )",   // 0: expand
+        "(    )",  // 1
+        "(    )",  // 2
+        "(   )",   // 3
+        "(  )",    // 4: contract
+        "(  )",    // 5
+        "( )",     // 6
+        "( )",     // 7
+        "()",      // 8
+        "()",      // 9
+        "O",       // 10: dots
+        "O",       // 11
+        "O",       // 12
+        "O",       // 13
+        "O",       // 14
+        " ",       // 15: disappear
+    ],
+    [
+        // kind=1: accident mode smoke
+        "(@@@)",   // 0: expand
+        "(@@@@)",  // 1
+        "(@@@@)",  // 2
+        "(@@@)",   // 3
+        "(@@)",    // 4: contract
+        "(@@)",    // 5
+        "(@)",     // 6
+        "(@)",     // 7
+        "@@",      // 8
+        "@@",      // 9
+        "@",       // 10: dots
+        "@",       // 11
+        "@",       // 12
+        "@",       // 13
+        "@",       // 14
+        " ",       // 15: disappear
+    ],
+];
+
+// C版と同じ dy/dx 配列（パターンごとの移動）
+pub const SMOKE_DY: [i32; 16] = [
+    2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+];
+
+pub const SMOKE_DX: [i32; 16] = [
+    -2, -1, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3
+];
+
+// Eraser patterns (space strings matching smoke pattern sizes)
+pub const SMOKE_ERASER: [&str; 16] = [
+    "     ",  // pattern 0: matches "(   )"
+    "      ", // pattern 1: matches "(    )"
+    "      ", // pattern 2: matches "(    )"
+    "     ",  // pattern 3: matches "(   )"
+    "    ",   // pattern 4: matches "(  )"
+    "    ",   // pattern 5: matches "(  )"
+    "   ",    // pattern 6: matches "( )"
+    "   ",    // pattern 7: matches "( )"
+    "  ",     // pattern 8: matches "()"
+    "  ",     // pattern 9: matches "()"
+    " ",      // pattern 10: matches "O"
+    " ",      // pattern 11: matches "O"
+    " ",      // pattern 12: matches "O"
+    " ",      // pattern 13: matches "O"
+    " ",      // pattern 14: matches "O"
+    " ",      // pattern 15: matches " "
 ];

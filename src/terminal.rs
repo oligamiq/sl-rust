@@ -3,9 +3,16 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType, enable_raw_mode, disable_raw_mode},
     cursor::{Hide, Show},
-    event::{poll, read, Event, KeyEvent, KeyCode},
+    event::{poll, read, Event, KeyCode},
 };
 use std::time::Duration;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputAction {
+    None,
+    Pause,
+    Quit,
+}
 
 pub struct Terminal {
     width: u16,
@@ -63,13 +70,21 @@ impl Terminal {
         read()
     }
 
-    pub fn check_quit(&self) -> io::Result<bool> {
+    pub fn check_input(&self) -> io::Result<InputAction> {
         if self.poll_event(Duration::from_millis(0))? {
-            if let Event::Key(KeyEvent { code: KeyCode::Char('c'), .. }) = self.read_event()? {
-                return Ok(true);
+            if let Event::Key(key_event) = self.read_event()? {
+                match key_event.code {
+                    KeyCode::Char(' ') | KeyCode::Char('p') | KeyCode::Char('P') => {
+                        return Ok(InputAction::Pause);
+                    }
+                    KeyCode::Char('c') | KeyCode::Esc => {
+                        return Ok(InputAction::Quit);
+                    }
+                    _ => {}
+                }
             }
         }
-        Ok(false)
+        Ok(InputAction::None)
     }
 }
 
