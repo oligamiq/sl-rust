@@ -3,8 +3,10 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType, enable_raw_mode, disable_raw_mode},
     cursor::{Hide, Show},
-    event::{poll, read, Event, KeyCode},
+    event::{poll, read, Event},
 };
+#[cfg(feature = "debug")]
+use crossterm::event::KeyCode;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,10 +73,12 @@ impl Terminal {
     }
 
     pub fn check_input(&self) -> io::Result<InputAction> {
+        #[allow(unused_mut)]
         let mut action = InputAction::None;
         while self.poll_event(Duration::from_millis(0))? {
             if let Event::Key(key_event) = self.read_event()? {
                 if key_event.kind == crossterm::event::KeyEventKind::Press {
+                    #[cfg(feature = "debug")]
                     match key_event.code {
                         KeyCode::Char(' ') | KeyCode::Char('p') | KeyCode::Char('P') => {
                             action = InputAction::Pause;

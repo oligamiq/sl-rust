@@ -15,3 +15,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 lto = true
+
+[features]
+default = []
+debug = []
