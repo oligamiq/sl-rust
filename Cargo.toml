@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/sl-rust",
+    "crates/arch-rust",
 ]
 
 [profile.release]
