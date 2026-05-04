@@ -1,4 +1,6 @@
 pub mod utils;
+#[cfg(test)]
+mod tests;
 
 use std::ffi::OsString;
 
@@ -19,9 +21,11 @@ where
         .file_name()
         .unwrap_or_default()
         .to_string_lossy();
-    let prog_name = prog_name_raw.trim_end_matches(".exe");
+    let prog_name = prog_name_raw
+        .trim_end_matches(".exe")
+        .trim_end_matches(".wasm");
 
-    let (util_name, util_args) = if prog_name == "core" || prog_name == "core-rust" {
+    let (util_name, util_args) = if prog_name == "core" || prog_name == "core-rust" || prog_name == "wasi-core-utils" {
         if args_vec.len() < 2 {
             return Err("Usage: core <utility> [args...]".to_string());
         }
