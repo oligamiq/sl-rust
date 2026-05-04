@@ -4,6 +4,7 @@ members = [
     "crates/sl-rust",
     "crates/arch-rust",
     "crates/tree-rust",
+    "crates/core-rust",
 ]
 
 [profile.release]

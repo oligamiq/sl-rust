@@ -137,6 +137,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-rust"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "libc",
+]
+
+[[package]]
 name = "crossterm"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
