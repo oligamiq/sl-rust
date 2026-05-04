@@ -1,0 +1,32 @@
+[package]
+name = "sl-rust"
+version = "1.0.2"
+edition = "2024"
+autobins = false
+description = "SL - An ASCII art train animation"
+authors = [
+    "oligamiq <nziq53@gmail.com>",
+    "Toyoda Masashi <mtoyoda@acm.org>",
+    "Copilot <223556219+Copilot@users.noreply.github.com>",
+]
+license = "MIT"
+repository = "https://github.com/oligamiq/sl-rust"
+readme = "README.md"
+keywords = ["terminal", "animation", "train", "sl", "wasi"]
+categories = ["command-line-utilities"]
+
+[lib]
+name = "sl"
+path = "src/lib.rs"
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+crossterm = "0.29"
+
+[[bin]]
+name = "sl"
+path = "src/main.rs"
+
+
+[features]
+default = []
+debug = []
