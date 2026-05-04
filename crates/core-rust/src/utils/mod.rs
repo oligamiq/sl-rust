@@ -1,3 +1,4 @@
+pub mod arch;
 pub mod cat;
 pub mod cp;
 pub mod echo;
@@ -12,5 +13,6 @@ pub mod sleep;
 pub mod tail;
 pub mod tee;
 pub mod touch;
+pub mod tree;
 pub mod uname;
 pub mod unlink;

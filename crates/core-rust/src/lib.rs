@@ -31,6 +31,7 @@ where
     };
 
     match util_name.as_str() {
+        "arch" => utils::arch::execute(util_args),
         "cat" => utils::cat::execute(util_args),
         "cp" => utils::cp::execute(util_args),
         "echo" => utils::echo::execute(util_args),
@@ -45,6 +46,7 @@ where
         "tail" => utils::tail::execute(util_args),
         "tee" => utils::tee::execute(util_args),
         "touch" => utils::touch::execute(util_args),
+        "tree" => utils::tree::execute(util_args),
         "uname" => utils::uname::execute(util_args),
         "unlink" => utils::unlink::execute(util_args),
         _ => Err(format!("Unknown utility: {}", util_name)),

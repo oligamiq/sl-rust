@@ -1,5 +1,6 @@
 use clap::Parser;
 use colored::*;
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -32,7 +33,13 @@ pub struct TreeStats {
     pub files: usize,
 }
 
-pub fn execute(args: Args) -> Result<(), std::io::Error> {
+pub fn execute<I, T>(args: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
+
     if args.no_color {
         control::set_override(false);
     }
@@ -45,7 +52,7 @@ pub fn execute(args: Args) -> Result<(), std::io::Error> {
         files: 0,
     };
 
-    render_recursive(root, "", &args, 0, &mut stats)?;
+    render_recursive(root, "", &args, 0, &mut stats).map_err(|e| e.to_string())?;
 
     println!(
         "\n{} directories, {} files",
@@ -70,7 +77,7 @@ fn render_recursive(
 
     let entries = match fs::read_dir(path) {
         Ok(e) => e,
-        Err(_) => return Ok(()), // Skip directories we can't read
+        Err(_) => return Ok(()),
     };
 
     let mut valid_entries: Vec<_> = entries
@@ -87,7 +94,6 @@ fn render_recursive(
         })
         .collect();
 
-    // Sort entries alphabetically
     valid_entries.sort_by_key(|e| e.file_name());
 
     let count = valid_entries.len();
