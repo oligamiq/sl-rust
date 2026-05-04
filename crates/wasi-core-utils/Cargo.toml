@@ -19,6 +19,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 colored = "3.0"
+chrono = "0.4"
 
 [target.'cfg(all(not(windows), not(target_os = "wasi")))'.dependencies]
 libc = "0.2"

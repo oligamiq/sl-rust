@@ -1,9 +1,11 @@
 pub mod arch;
 pub mod cat;
 pub mod cp;
+pub mod dir;
 pub mod echo;
 pub mod link;
 pub mod ln;
+pub mod ls;
 pub mod mkdir;
 pub mod mv;
 pub mod pwd;
