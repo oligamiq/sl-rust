@@ -1,15 +1,15 @@
 [package]
-name = "core-rust"
+name = "wasi-core-utils"
 version = "0.1.0"
 edition = "2024"
 authors = ["Antigravity <antigravity@google.com>"]
-description = "A collection of core utilities in Rust"
+description = "A collection of core utilities optimized for WASI"
 license = "MIT"
 keywords = ["command-line-utilities", "wasi", "coreutils", "busybox"]
 categories = ["command-line-utilities"]
 
 [lib]
-name = "core_lib"
+name = "wasi_core_utils"
 path = "src/lib.rs"
 
 [[bin]]
