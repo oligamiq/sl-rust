@@ -1,4 +1,3 @@
-use std::env;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -9,7 +8,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_args() -> Self {
+    pub fn from_args<I, T>(args: I) -> Self 
+    where
+        I: IntoIterator<Item = T>,
+        T: AsRef<str>,
+    {
         let mut config = Config {
             accident: false,
             c51: false,
@@ -17,9 +20,10 @@ impl Config {
             flying: false,
         };
 
-        for arg in env::args().skip(1) {
-            if arg.starts_with('-') {
-                for ch in arg.chars().skip(1) {
+        for arg in args.into_iter() {
+            let arg_str = arg.as_ref();
+            if arg_str.starts_with('-') {
+                for ch in arg_str.chars().skip(1) {
                     match ch {
                         'a' => config.accident = true,
                         'c' => config.c51 = true,
