@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, Cursor, Read, Write};
 use std::sync::{Arc, Mutex};
 use colored::*;
-pub use wasi_core_utils::IoContext;
+pub use wasibox_core::IoContext;
 
 pub fn handle_pipeline<R, W>(line: &str, initial_stdin: Box<R>, final_stdout: Box<W>) -> Result<(), String> 
 where 
@@ -129,7 +129,7 @@ pub fn execute_command(args: Vec<String>, ctx: &mut IoContext) -> Result<(), Str
             let _ = sl::run(args.iter().cloned());
             Ok(())
         }
-        _ => wasi_core_utils::execute_with_context(args.iter().cloned(), ctx),
+        _ => wasibox_core::execute_with_context(args.iter().cloned(), ctx),
     }
 }
 

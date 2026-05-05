@@ -59,7 +59,7 @@ where
         .trim_end_matches(".exe")
         .trim_end_matches(".wasm");
 
-    let (util_name, util_args) = if prog_name == "core" || prog_name == "core-rust" || prog_name == "wasi-core-utils" {
+    let (util_name, util_args) = if prog_name == "core" || prog_name == "core-rust" || prog_name == "wasibox-core" {
         if args_vec.len() < 2 {
             return Err("Usage: core <utility> [args...]".to_string());
         }

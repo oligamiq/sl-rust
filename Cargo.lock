@@ -787,18 +787,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
-name = "wasi-core-utils"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "colored",
- "libc",
- "regex",
- "tempfile",
-]
-
-[[package]]
 name = "wasi-shell"
 version = "0.1.0"
 dependencies = [
@@ -806,7 +794,7 @@ dependencies = [
  "shlex",
  "sl-rust",
  "tempfile",
- "wasi-core-utils",
+ "wasibox-core",
 ]
 
 [[package]]
@@ -815,7 +803,19 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "sl-rust",
- "wasi-core-utils",
+ "wasibox-core",
+]
+
+[[package]]
+name = "wasibox-core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "colored",
+ "libc",
+ "regex",
+ "tempfile",
 ]
 
 [[package]]

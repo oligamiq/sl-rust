@@ -8,7 +8,7 @@ const BUSYBOX_DIR: &str = r"C:\bin\busybox";
 
 fn run_ours(args: &[&str]) -> String {
     let output = Command::new("cargo")
-        .args(&["run", "-q", "-p", "wasi-core-utils", "--"])
+        .args(&["run", "-q", "-p", "wasibox-core", "--"])
         .args(args)
         .output()
         .expect("Failed to run our utility via cargo run");

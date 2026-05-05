@@ -1,5 +1,5 @@
 [package]
-name = "wasi-core-utils"
+name = "wasibox-core"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -46,7 +46,7 @@ yes = []
 env = []
 
 [lib]
-name = "wasi_core_utils"
+name = "wasibox_core"
 path = "src/lib.rs"
 
 [[bin]]

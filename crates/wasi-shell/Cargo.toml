@@ -7,7 +7,7 @@ description = "A modular WASI-compatible shell with piping and redirection"
 license.workspace = true
 
 [dependencies]
-wasi-core-utils = { path = "../wasi-core-utils" }
+wasibox-core = { workspace = true, default-features = true }
 sl-rust = { workspace = true }
 shlex = { workspace = true }
 colored = { workspace = true }

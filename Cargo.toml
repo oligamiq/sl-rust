@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "crates/sl-rust",
-    "crates/wasi-core-utils",
+    "crates/wasibox-core",
     "crates/wasibox",
     "crates/wasi-shell",
 ]
@@ -19,6 +19,7 @@ readme = "README.md"
 [workspace.dependencies]
 sl-rust = { path = "crates/sl-rust" }
 wasi-shell = { path = "crates/wasi-shell" }
+wasibox-core = { path = "crates/wasibox-core", default-features = false }
 shlex = "1.3"
 colored = "3.0"
 clap = { version = "4.5", features = ["derive"] }

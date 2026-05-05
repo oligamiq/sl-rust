@@ -8,7 +8,7 @@ This workspace contains several crates designed to provide a rich command-line e
 
 - **`wasibox`**: An umbrella multi-call binary (similar to BusyBox) that integrates all utilities.
 - **`wasi-shell`**: A modular REPL with support for piping (`|`) and redirection (`>`, `>>`).
-- **`wasi-core-utils`**: A shared library of essential POSIX-like utilities (ls, cat, grep, etc.) using an injectable `IoContext`.
+- **`wasibox-core`**: A shared library of essential POSIX-like utilities (ls, cat, grep, etc.) using an injectable `IoContext`.
 - **`sl-rust`**: A Rust implementation of the classic SL (Steam Locomotive) animation.
 
 ## Features
