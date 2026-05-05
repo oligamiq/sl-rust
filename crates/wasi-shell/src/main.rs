@@ -28,7 +28,7 @@ fn main() {
             continue;
         }
 
-        if let Err(e) = handle_pipeline(line, Box::new(io::stdin()), Box::new(io::stdout())) {
+        if let Err(e) = handle_pipeline(line, Box::new(io::stdin()), Box::new(io::stdout()), &mut |_, _| None) {
             eprintln!("{}", e.red());
         }
     }

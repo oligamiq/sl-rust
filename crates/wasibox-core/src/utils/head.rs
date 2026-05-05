@@ -1,8 +1,9 @@
 use clap::Parser;
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
+use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "head", about = "Output the first part of files")]
@@ -20,29 +21,37 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
 
     if args.files.is_empty() {
-        head_stream(io::stdin().lock(), args.lines)?;
+        head_stream(BufReader::new(&mut ctx.stdin), &mut ctx.stdout, args.lines)?;
     } else {
         for file_path in &args.files {
             if args.files.len() > 1 {
-                println!("==> {} <==", file_path.display());
+                writeln!(ctx.stdout, "==> {} <==", file_path.display()).map_err(|e| e.to_string())?;
             }
             let file = File::open(file_path).map_err(|e| format!("head: {}: {}", file_path.display(), e))?;
-            head_stream(BufReader::new(file), args.lines)?;
+            head_stream(BufReader::new(file), &mut ctx.stdout, args.lines)?;
         }
     }
     Ok(())
 }
 
-fn head_stream<R: BufRead>(reader: R, lines: usize) -> Result<(), String> {
+fn head_stream<R: BufRead, W: Write>(reader: R, writer: &mut W, lines: usize) -> Result<(), String> {
     for (i, line) in reader.lines().enumerate() {
         if i >= lines {
             break;
         }
         let line = line.map_err(|e| e.to_string())?;
-        println!("{}", line);
+        writeln!(writer, "{}", line).map_err(|e| e.to_string())?;
     }
     Ok(())
 }

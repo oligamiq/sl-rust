@@ -1,7 +1,18 @@
 use std::ffi::OsString;
 use std::env;
 
-pub fn execute<I, T>(_args: I) -> Result<(), String>
+use std::io::Write;
+use crate::IoContext;
+
+pub fn execute<I, T>(args: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(_args: I, ctx: &mut IoContext) -> Result<(), String>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -12,6 +23,6 @@ where
         .or_else(|_| env::var("USERNAME"))
         .unwrap_or_else(|_| "wasi-user".to_string());
     
-    println!("{}", user);
+    writeln!(ctx.stdout, "{}", user).map_err(|e| e.to_string())?;
     Ok(())
 }

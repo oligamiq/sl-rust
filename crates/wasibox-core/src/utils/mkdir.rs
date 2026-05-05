@@ -2,6 +2,8 @@ use clap::Parser;
 use std::ffi::OsString;
 use std::fs;
 
+use crate::IoContext;
+
 #[derive(Parser)]
 #[command(name = "mkdir", about = "Create directories")]
 struct Args {
@@ -15,6 +17,14 @@ struct Args {
 }
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, _ctx: &mut IoContext) -> Result<(), String>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,

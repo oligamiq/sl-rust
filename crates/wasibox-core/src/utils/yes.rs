@@ -1,7 +1,16 @@
 use std::ffi::OsString;
-use std::io::{self, Write};
+use std::io::Write;
+use crate::IoContext;
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -17,10 +26,8 @@ where
         args_vec.join(" ")
     };
 
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
     loop {
-        if writeln!(handle, "{}", message).is_err() {
+        if writeln!(ctx.stdout, "{}", message).is_err() {
             break;
         }
     }

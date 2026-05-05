@@ -2,6 +2,9 @@ use clap::Parser;
 use std::ffi::OsString;
 use std::path::Path;
 
+use std::io::Write;
+use crate::IoContext;
+
 #[derive(Parser)]
 #[command(name = "basename", about = "Strip directory and suffix from filenames")]
 pub struct Args {
@@ -13,6 +16,14 @@ pub struct Args {
 }
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -29,6 +40,6 @@ where
         }
     }
 
-    println!("{}", base);
+    writeln!(ctx.stdout, "{}", base).map_err(|e| e.to_string())?;
     Ok(())
 }

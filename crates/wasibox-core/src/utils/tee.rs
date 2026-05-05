@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::ffi::OsString;
-use std::io::{self, Read, Write};
+use std::io::Write;
+use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "tee", about = "Read from standard input and write to standard output and files")]
@@ -14,6 +15,14 @@ struct Args {
 }
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -33,11 +42,11 @@ where
 
     let mut buffer = [0; 8192];
     loop {
-        let bytes_read = io::stdin().read(&mut buffer).map_err(|e| e.to_string())?;
+        let bytes_read = ctx.stdin.read(&mut buffer).map_err(|e| e.to_string())?;
         if bytes_read == 0 {
             break;
         }
-        io::stdout().write_all(&buffer[..bytes_read]).map_err(|e| e.to_string())?;
+        ctx.stdout.write_all(&buffer[..bytes_read]).map_err(|e| e.to_string())?;
         for f in &mut files {
             f.write_all(&buffer[..bytes_read]).map_err(|e| e.to_string())?;
         }

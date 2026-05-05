@@ -12,13 +12,25 @@ struct Args {
     #[arg(short = 'a')]
     all: bool,
 }
+use std::io::Write;
+use crate::IoContext;
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
+
+    let mut output = Vec::new();
 
     #[cfg(all(not(windows), not(target_os = "wasi")))]
     {
@@ -32,29 +44,26 @@ where
             }
             let name = name.assume_init();
             
-            let mut output = Vec::new();
             if args.all || (!args.machine) {
-                output.push(CStr::from_ptr(name.sysname.as_ptr()).to_string_lossy());
+                output.push(CStr::from_ptr(name.sysname.as_ptr()).to_string_lossy().into_owned());
             }
             if args.all || args.machine {
-                output.push(CStr::from_ptr(name.machine.as_ptr()).to_string_lossy());
+                output.push(CStr::from_ptr(name.machine.as_ptr()).to_string_lossy().into_owned());
             }
-            println!("{}", output.join(" "));
         }
     }
 
     #[cfg(any(windows, target_os = "wasi"))]
     {
         let sysname = if cfg!(windows) { "Windows" } else { "WASI" };
-        let mut output = Vec::new();
         if args.all || (!args.machine) {
             output.push(sysname.to_string());
         }
         if args.all || args.machine {
             output.push(std::env::consts::ARCH.to_string());
         }
-        println!("{}", output.join(" "));
     }
 
+    writeln!(ctx.stdout, "{}", output.join(" ")).map_err(|e| e.to_string())?;
     Ok(())
 }

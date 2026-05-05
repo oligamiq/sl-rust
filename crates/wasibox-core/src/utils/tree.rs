@@ -3,6 +3,8 @@ use colored::*;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::io::Write;
+use crate::IoContext;
 
 #[derive(Parser, Debug)]
 #[command(name = "tree", version, about = "Recursive directory listing.", long_about = None)]
@@ -38,6 +40,14 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
 
     if args.no_color {
@@ -45,19 +55,20 @@ where
     }
 
     let root = &args.path;
-    println!("{}", root.display().to_string().blue().bold());
+    writeln!(ctx.stdout, "{}", root.display().to_string().blue().bold()).map_err(|e| e.to_string())?;
 
     let mut stats = TreeStats {
         directories: 0,
         files: 0,
     };
 
-    render_recursive(root, "", &args, 0, &mut stats).map_err(|e| e.to_string())?;
+    render_recursive(root, "", &args, 0, &mut stats, &mut ctx.stdout).map_err(|e| e.to_string())?;
 
-    println!(
+    writeln!(
+        ctx.stdout,
         "\n{} directories, {} files",
         stats.directories, stats.files
-    );
+    ).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -68,6 +79,7 @@ fn render_recursive(
     args: &Args,
     depth: usize,
     stats: &mut TreeStats,
+    writer: &mut Box<dyn Write + Send>,
 ) -> Result<(), std::io::Error> {
     if let Some(max_depth) = args.level {
         if depth >= max_depth {
@@ -111,12 +123,12 @@ fn render_recursive(
             name.normal()
         };
 
-        println!("{}{}{}", prefix, branch, display_name);
+        writeln!(writer, "{}{}{}", prefix, branch, display_name)?;
 
         if is_dir {
             stats.directories += 1;
             let new_prefix = format!("{}{}", prefix, if is_last { "    " } else { "│   " });
-            render_recursive(&path, &new_prefix, args, depth + 1, stats)?;
+            render_recursive(&path, &new_prefix, args, depth + 1, stats, writer)?;
         } else {
             stats.files += 1;
         }
