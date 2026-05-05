@@ -3,6 +3,7 @@ pub mod utils;
 mod tests;
 
 use std::ffi::OsString;
+use std::path::Path;
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
 where
@@ -14,9 +15,6 @@ where
         return Err("No utility specified".to_string());
     }
 
-    // Determine the utility name. 
-    // It can be the first argument if run as 'core <util> ...' 
-    // or the program name if run as '<util> ...'.
     let prog_name_raw = Path::new(&args_vec[0])
         .file_name()
         .unwrap_or_default()
@@ -35,28 +33,46 @@ where
     };
 
     match util_name.as_str() {
+        #[cfg(feature = "arch")]
         "arch" => utils::arch::execute(util_args),
+        #[cfg(feature = "cat")]
         "cat" => utils::cat::execute(util_args),
+        #[cfg(feature = "cp")]
         "cp" => utils::cp::execute(util_args),
+        #[cfg(feature = "dir")]
         "dir" => utils::dir::execute(util_args),
+        #[cfg(feature = "echo")]
         "echo" => utils::echo::execute(util_args),
+        #[cfg(feature = "link")]
         "link" => utils::link::execute(util_args),
+        #[cfg(feature = "ln")]
         "ln" => utils::ln::execute(util_args),
+        #[cfg(feature = "ls")]
         "ls" => utils::ls::execute(util_args),
+        #[cfg(feature = "mkdir")]
         "mkdir" => utils::mkdir::execute(util_args),
+        #[cfg(feature = "mv")]
         "mv" => utils::mv::execute(util_args),
+        #[cfg(feature = "pwd")]
         "pwd" => utils::pwd::execute(util_args),
+        #[cfg(feature = "rm")]
         "rm" => utils::rm::execute(util_args),
+        #[cfg(feature = "rmdir")]
         "rmdir" => utils::rmdir::execute(util_args),
+        #[cfg(feature = "sleep")]
         "sleep" => utils::sleep::execute(util_args),
+        #[cfg(feature = "tail")]
         "tail" => utils::tail::execute(util_args),
+        #[cfg(feature = "tee")]
         "tee" => utils::tee::execute(util_args),
+        #[cfg(feature = "touch")]
         "touch" => utils::touch::execute(util_args),
+        #[cfg(feature = "tree")]
         "tree" => utils::tree::execute(util_args),
+        #[cfg(feature = "uname")]
         "uname" => utils::uname::execute(util_args),
+        #[cfg(feature = "unlink")]
         "unlink" => utils::unlink::execute(util_args),
         _ => Err(format!("Unknown utility: {}", util_name)),
     }
 }
-
-use std::path::Path;

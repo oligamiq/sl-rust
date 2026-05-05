@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/sl-rust",
     "crates/wasi-core-utils",
+    "crates/wasibox",
 ]
 
 [profile.release]

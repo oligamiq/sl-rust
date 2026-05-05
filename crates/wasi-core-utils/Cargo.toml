@@ -8,6 +8,32 @@ license = "MIT"
 keywords = ["command-line-utilities", "wasi", "coreutils", "busybox"]
 categories = ["command-line-utilities"]
 
+[features]
+default = [
+    "arch", "cat", "cp", "dir", "echo", "link", "ln", "ls", "mkdir",
+    "mv", "pwd", "rm", "rmdir", "sleep", "tail", "tee", "touch", "tree", "uname", "unlink"
+]
+arch = []
+cat = []
+cp = []
+dir = ["ls"]
+echo = []
+link = []
+ln = []
+ls = []
+mkdir = []
+mv = []
+pwd = []
+rm = []
+rmdir = []
+sleep = []
+tail = []
+tee = []
+touch = []
+tree = []
+uname = []
+unlink = []
+
 [lib]
 name = "wasi_core_utils"
 path = "src/lib.rs"
