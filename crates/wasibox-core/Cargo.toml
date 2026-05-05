@@ -7,7 +7,7 @@ description = "A collection of core utilities optimized for WASI"
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-keywords = ["command-line-utilities", "wasi", "coreutils", "busybox"]
+keywords = ["cli-utilities", "wasi", "coreutils", "busybox"]
 categories = ["command-line-utilities"]
 
 [features]
