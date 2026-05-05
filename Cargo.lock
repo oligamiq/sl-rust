@@ -799,6 +799,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasi-shell"
+version = "0.1.0"
+dependencies = [
+ "colored",
+ "shlex",
+ "sl-rust",
+ "wasi-core-utils",
+]
+
+[[package]]
 name = "wasibox"
 version = "0.1.0"
 dependencies = [

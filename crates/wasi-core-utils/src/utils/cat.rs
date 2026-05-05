@@ -2,6 +2,7 @@ use clap::Parser;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io;
+use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "cat", about = "Concatenate and print files")]
@@ -16,16 +17,22 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
 
     for file in args.files {
         if file == "-" {
-            io::copy(&mut io::stdin(), &mut handle).map_err(|e| e.to_string())?;
+            io::copy(&mut ctx.stdin, &mut ctx.stdout).map_err(|e| e.to_string())?;
         } else {
             let mut f = File::open(&file).map_err(|e| format!("cat: {}: {}", file, e))?;
-            io::copy(&mut f, &mut handle).map_err(|e| format!("cat: {}: {}", file, e))?;
+            io::copy(&mut f, &mut ctx.stdout).map_err(|e| format!("cat: {}: {}", file, e))?;
         }
     }
     Ok(())

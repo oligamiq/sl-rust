@@ -4,6 +4,8 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use chrono::{DateTime, Local};
+use crate::IoContext;
+use std::io::Write;
 
 #[derive(Parser, Debug)]
 #[command(name = "ls", about = "List directory contents")]
@@ -30,6 +32,14 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    execute_with_context(args, &mut IoContext::default())
+}
+
+pub fn execute_with_context<I, T>(args: I, ctx: &mut IoContext) -> Result<(), String>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
     
     let paths = if args.paths.is_empty() {
@@ -40,11 +50,11 @@ where
 
     for (i, path) in paths.iter().enumerate() {
         if paths.len() > 1 {
-            println!("{}:", path.display());
+            writeln!(ctx.stdout, "{}:", path.display()).map_err(|e| e.to_string())?;
         }
-        render_ls(path, &args)?;
+        render_ls(path, &args, ctx)?;
         if i < paths.len() - 1 {
-            println!();
+            writeln!(ctx.stdout).map_err(|e| e.to_string())?;
         }
     }
     Ok(())
@@ -56,11 +66,10 @@ struct EntryInfo {
     is_dir: bool,
 }
 
-fn render_ls(path: &Path, args: &Args) -> Result<(), String> {
+fn render_ls(path: &Path, args: &Args, ctx: &mut IoContext) -> Result<(), String> {
     let mut entries_vec = Vec::new();
 
     if args.all {
-        // Add .
         if let Ok(meta) = fs::metadata(path) {
             entries_vec.push(EntryInfo {
                 name: ".".to_string(),
@@ -68,7 +77,6 @@ fn render_ls(path: &Path, args: &Args) -> Result<(), String> {
                 is_dir: true,
             });
         }
-        // Add ..
         let parent = if path.as_os_str() == "." {
             Path::new("..")
         } else {
@@ -115,20 +123,20 @@ fn render_ls(path: &Path, args: &Args) -> Result<(), String> {
                 (e.metadata.len() + 1023) / 1024
             }
         }).sum::<u64>();
-        println!("total {}", total_blocks);
+        writeln!(ctx.stdout, "total {}", total_blocks).map_err(|e| e.to_string())?;
 
         for entry in &entries_vec {
-            print_long(entry);
+            print_long(entry, &mut ctx.stdout)?;
         }
     } else {
         for entry in &entries_vec {
             if entry.is_dir {
-                print!("{}  ", entry.name.blue().bold());
+                write!(ctx.stdout, "{}  ", entry.name.blue().bold()).map_err(|e| e.to_string())?;
             } else {
-                print!("{}  ", entry.name.normal());
+                write!(ctx.stdout, "{}  ", entry.name.normal()).map_err(|e| e.to_string())?;
             }
         }
-        println!();
+        writeln!(ctx.stdout).map_err(|e| e.to_string())?;
     }
 
     if args.recursive {
@@ -136,8 +144,8 @@ fn render_ls(path: &Path, args: &Args) -> Result<(), String> {
             if entry.is_dir && entry.name != "." && entry.name != ".." {
                 let mut new_path = PathBuf::from(path);
                 new_path.push(&entry.name);
-                println!("\n{}:", new_path.display());
-                render_ls(&new_path, args)?;
+                writeln!(ctx.stdout, "\n{}:", new_path.display()).map_err(|e| e.to_string())?;
+                render_ls(&new_path, args, ctx)?;
             }
         }
     }
@@ -145,7 +153,7 @@ fn render_ls(path: &Path, args: &Args) -> Result<(), String> {
     Ok(())
 }
 
-fn print_long(entry: &EntryInfo) {
+fn print_long(entry: &EntryInfo, out: &mut Box<dyn Write + Send>) -> Result<(), String> {
     let mode = get_mode_string(&entry.metadata);
     let nlink = get_nlink(&entry.metadata);
     let owner = get_owner(&entry.metadata);
@@ -158,10 +166,11 @@ fn print_long(entry: &EntryInfo) {
         entry.name.normal()
     };
 
-    println!(
+    writeln!(
+        out,
         "{} {:>3} {:<8} {:<8} {:>8} {} {}",
         mode, nlink, owner, group, size, time, name
-    );
+    ).map_err(|e| e.to_string())
 }
 
 fn get_mode_string(meta: &fs::Metadata) -> String {
@@ -188,7 +197,6 @@ fn get_mode_string(meta: &fs::Metadata) -> String {
     }
     #[cfg(not(unix))]
     {
-        // Placeholder for non-unix
         if meta.permissions().readonly() {
             s.push_str("r--r--r--");
         } else {

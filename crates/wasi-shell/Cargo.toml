@@ -1,0 +1,13 @@
+[package]
+name = "wasi-shell"
+version = "0.1.0"
+edition = "2024"
+authors = ["Antigravity <antigravity@google.com>", "oligami <nziq53@gmail.com>"]
+description = "A modular WASI-compatible shell"
+license = "MIT"
+
+[dependencies]
+wasi-core-utils = { path = "../wasi-core-utils" }
+sl-rust = { path = "../sl-rust" }
+shlex = "1.3"
+colored = "3.0"
