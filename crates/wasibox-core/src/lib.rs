@@ -107,6 +107,8 @@ where
         "rm" => utils::rm::execute_with_context(util_args, ctx),
         #[cfg(feature = "rmdir")]
         "rmdir" => utils::rmdir::execute_with_context(util_args, ctx),
+        #[cfg(feature = "seq")]
+        "seq" => utils::seq::execute_with_context(util_args, ctx),
         #[cfg(feature = "sleep")]
         "sleep" => utils::sleep::execute_with_context(util_args, ctx),
         #[cfg(feature = "tail")]

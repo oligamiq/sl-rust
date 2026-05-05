@@ -50,8 +50,12 @@ fn head_stream<R: BufRead, W: Write>(reader: R, writer: &mut W, lines: usize) ->
         if i >= lines {
             break;
         }
-        let line = line.map_err(|e| e.to_string())?;
-        writeln!(writer, "{}", line).map_err(|e| e.to_string())?;
+        let line = match line {
+            Ok(l) => l,
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => break,
+            Err(e) => return Err(e.to_string()),
+        };
+        if writeln!(writer, "{}", line).is_err() { break; }
     }
     Ok(())
 }

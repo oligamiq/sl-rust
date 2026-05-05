@@ -28,11 +28,16 @@ where
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
 
     for file in args.files {
-        if file == "-" {
-            io::copy(&mut ctx.stdin, &mut ctx.stdout).map_err(|e| e.to_string())?;
+        let result = if file == "-" {
+            io::copy(&mut ctx.stdin, &mut ctx.stdout)
         } else {
             let mut f = File::open(&file).map_err(|e| format!("cat: {}: {}", file, e))?;
-            io::copy(&mut f, &mut ctx.stdout).map_err(|e| format!("cat: {}: {}", file, e))?;
+            io::copy(&mut f, &mut ctx.stdout)
+        };
+        match result {
+            Ok(_) => {}
+            Err(e) if e.kind() == io::ErrorKind::BrokenPipe => break,
+            Err(e) => return Err(format!("cat: {}: {}", file, e)),
         }
     }
     Ok(())

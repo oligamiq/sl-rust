@@ -17,6 +17,7 @@
 #[cfg(feature = "pwd")] pub mod pwd;
 #[cfg(feature = "rm")] pub mod rm;
 #[cfg(feature = "rmdir")] pub mod rmdir;
+#[cfg(feature = "seq")] pub mod seq;
 #[cfg(feature = "sleep")] pub mod sleep;
 #[cfg(feature = "tail")] pub mod tail;
 #[cfg(feature = "tee")] pub mod tee;

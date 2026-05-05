@@ -73,13 +73,17 @@ where
 #[cfg(feature = "grep")]
 fn grep_stream<R: BufRead, W: Write>(reader: R, re: &regex::Regex, invert: bool, label: Option<&str>, mut out: W) -> Result<(), String> {
     for line in reader.lines() {
-        let line = line.map_err(|e| e.to_string())?;
+        let line = match line {
+            Ok(l) => l,
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => break,
+            Err(e) => return Err(e.to_string()),
+        };
         let matched = re.is_match(&line);
         if matched ^ invert {
             if let Some(l) = label {
-                write!(out, "{}:", l).map_err(|e| e.to_string())?;
+                if write!(out, "{}:", l).is_err() { break; }
             }
-            writeln!(out, "{}", line).map_err(|e| e.to_string())?;
+            if writeln!(out, "{}", line).is_err() { break; }
         }
     }
     Ok(())

@@ -42,13 +42,15 @@ where
 
     let mut buffer = [0; 8192];
     loop {
-        let bytes_read = ctx.stdin.read(&mut buffer).map_err(|e| e.to_string())?;
-        if bytes_read == 0 {
-            break;
-        }
-        ctx.stdout.write_all(&buffer[..bytes_read]).map_err(|e| e.to_string())?;
+        let bytes_read = match ctx.stdin.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => break,
+            Err(e) => return Err(e.to_string()),
+        };
+        if ctx.stdout.write_all(&buffer[..bytes_read]).is_err() { break; }
         for f in &mut files {
-            f.write_all(&buffer[..bytes_read]).map_err(|e| e.to_string())?;
+            let _ = f.write_all(&buffer[..bytes_read]);
         }
     }
     Ok(())

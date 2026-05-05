@@ -13,7 +13,7 @@ categories = ["command-line-utilities"]
 [features]
 default = [
     "arch", "cat", "cp", "dir", "echo", "link", "ln", "ls", "mkdir",
-    "mv", "pwd", "rm", "rmdir", "sleep", "tail", "tee", "touch", "tree", "uname", "unlink",
+    "mv", "pwd", "rm", "rmdir", "seq", "sleep", "tail", "tee", "touch", "tree", "uname", "unlink",
     "head", "wc", "grep", "whoami", "basename", "dirname", "true", "false", "yes", "env"
 ]
 arch = []
@@ -29,6 +29,7 @@ mv = []
 pwd = []
 rm = []
 rmdir = []
+seq = []
 sleep = []
 tail = []
 tee = []

@@ -2,9 +2,11 @@ use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use colored::*;
-use wasi_shell::handle_pipeline;
+use wasi_shell::{CommandRegistry, handle_pipeline};
 
 fn main() {
+    let registry = CommandRegistry::with_builtins();
+
     let mut input = String::new();
     let stdin = io::stdin();
     
@@ -28,7 +30,7 @@ fn main() {
             continue;
         }
 
-        if let Err(e) = handle_pipeline(line, Box::new(io::stdin()), Box::new(io::stdout()), &mut |_, _| None) {
+        if let Err(e) = handle_pipeline(line, Box::new(io::stdin()), Box::new(io::stdout()), &registry) {
             eprintln!("{}", e.red());
         }
     }
