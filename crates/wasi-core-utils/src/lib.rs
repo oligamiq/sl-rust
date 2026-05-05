@@ -35,14 +35,26 @@ where
     match util_name.as_str() {
         #[cfg(feature = "arch")]
         "arch" => utils::arch::execute(util_args),
+        #[cfg(feature = "basename")]
+        "basename" => utils::basename::execute(util_args),
         #[cfg(feature = "cat")]
         "cat" => utils::cat::execute(util_args),
         #[cfg(feature = "cp")]
         "cp" => utils::cp::execute(util_args),
         #[cfg(feature = "dir")]
         "dir" => utils::dir::execute(util_args),
+        #[cfg(feature = "dirname")]
+        "dirname" => utils::dirname::execute(util_args),
         #[cfg(feature = "echo")]
         "echo" => utils::echo::execute(util_args),
+        #[cfg(feature = "env")]
+        "env" => utils::env::execute(util_args),
+        #[cfg(feature = "false")]
+        "false" => utils::r#false::execute(util_args),
+        #[cfg(feature = "grep")]
+        "grep" => utils::grep::execute(util_args),
+        #[cfg(feature = "head")]
+        "head" => utils::head::execute(util_args),
         #[cfg(feature = "link")]
         "link" => utils::link::execute(util_args),
         #[cfg(feature = "ln")]
@@ -69,10 +81,18 @@ where
         "touch" => utils::touch::execute(util_args),
         #[cfg(feature = "tree")]
         "tree" => utils::tree::execute(util_args),
+        #[cfg(feature = "true")]
+        "true" => utils::r#true::execute(util_args),
         #[cfg(feature = "uname")]
         "uname" => utils::uname::execute(util_args),
         #[cfg(feature = "unlink")]
         "unlink" => utils::unlink::execute(util_args),
+        #[cfg(feature = "wc")]
+        "wc" => utils::wc::execute(util_args),
+        #[cfg(feature = "whoami")]
+        "whoami" => utils::whoami::execute(util_args),
+        #[cfg(feature = "yes")]
+        "yes" => utils::yes::execute(util_args),
         _ => Err(format!("Unknown utility: {}", util_name)),
     }
 }

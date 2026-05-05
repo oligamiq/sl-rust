@@ -1,8 +1,38 @@
 #[cfg(test)]
 mod tests {
     use crate::utils;
-    use tempfile::tempdir;
     use std::fs;
+    use std::env;
+    use std::path::Path;
+
+    fn get_temp_dir() -> tempfile::TempDir {
+        #[cfg(target_os = "wasi")]
+        {
+            // Tiered fallback for WASI:
+            // 1. Check TMPDIR environment variable
+            if let Ok(tmp_env) = env::var("TMPDIR") {
+                if Path::new(&tmp_env).exists() {
+                    if let Ok(dir) = tempfile::Builder::new().prefix("test_").tempdir_in(&tmp_env) {
+                        return dir;
+                    }
+                }
+            }
+
+            // 2. Check /tmp (standard POSIX)
+            if Path::new("/tmp").exists() {
+                if let Ok(dir) = tempfile::Builder::new().prefix("test_").tempdir_in("/tmp") {
+                    return dir;
+                }
+            }
+
+            // 3. Fallback to current directory (guaranteed preopen in most test runners)
+            tempfile::Builder::new().prefix("test_").tempdir_in(".").expect("Failed to create temp dir in current directory")
+        }
+        #[cfg(not(target_os = "wasi"))]
+        {
+            tempfile::tempdir().expect("Failed to create system temp dir")
+        }
+    }
 
     #[test]
     fn test_echo() {
@@ -18,7 +48,7 @@ mod tests {
 
     #[test]
     fn test_mkdir_rmdir() {
-        let tmp = tempdir().unwrap();
+        let tmp = get_temp_dir();
         let dir_path = tmp.path().join("test_dir");
         let dir_str = dir_path.to_str().unwrap();
 
@@ -36,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_touch_rm_unlink() {
-        let tmp = tempdir().unwrap();
+        let tmp = get_temp_dir();
         let file_path = tmp.path().join("test_file");
         let file_str = file_path.to_str().unwrap();
 
@@ -59,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_cp_mv() {
-        let tmp = tempdir().unwrap();
+        let tmp = get_temp_dir();
         let src = tmp.path().join("src");
         let dst = tmp.path().join("dst");
         let src_str = src.to_str().unwrap();
@@ -85,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_cat_tail() {
-        let tmp = tempdir().unwrap();
+        let tmp = get_temp_dir();
         let file = tmp.path().join("file");
         let file_str = file.to_str().unwrap();
         fs::write(&file, "line1\nline2\nline3\n").unwrap();
@@ -101,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_ls_tree() {
-        let tmp = tempdir().unwrap();
+        let tmp = get_temp_dir();
         let dir_str = tmp.path().to_str().unwrap();
 
         // ls
@@ -127,18 +157,15 @@ mod tests {
 
     #[test]
     fn test_tee() {
-        let tmp = tempdir().unwrap();
+        let tmp = get_temp_dir();
         let _file = tmp.path().join("tee_out");
         
-        // tee - This is hard to test with stdin without a wrapper, 
-        // but we can check success with empty input or just check the file creation if we could mock stdin.
-        // For now, just check it parses and runs (it will wait for stdin if called normally).
-        // Let's skip interactive part or use a file redirect in a real integration test.
+        // tee - This is hard to test with stdin without a wrapper
     }
 
     #[test]
     fn test_ln_link() {
-        let tmp = tempdir().unwrap();
+        let tmp = get_temp_dir();
         let src = tmp.path().join("src");
         let dst = tmp.path().join("dst");
         let src_str = src.to_str().unwrap();

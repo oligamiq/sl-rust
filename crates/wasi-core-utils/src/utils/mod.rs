@@ -1,8 +1,14 @@
 #[cfg(feature = "arch")] pub mod arch;
+#[cfg(feature = "basename")] pub mod basename;
 #[cfg(feature = "cat")] pub mod cat;
 #[cfg(feature = "cp")] pub mod cp;
 #[cfg(feature = "dir")] pub mod dir;
+#[cfg(feature = "dirname")] pub mod dirname;
 #[cfg(feature = "echo")] pub mod echo;
+#[cfg(feature = "env")] pub mod env;
+#[cfg(feature = "false")] pub mod r#false;
+#[cfg(feature = "grep")] pub mod grep;
+#[cfg(feature = "head")] pub mod head;
 #[cfg(feature = "link")] pub mod link;
 #[cfg(feature = "ln")] pub mod ln;
 #[cfg(feature = "ls")] pub mod ls;
@@ -16,5 +22,9 @@
 #[cfg(feature = "tee")] pub mod tee;
 #[cfg(feature = "touch")] pub mod touch;
 #[cfg(feature = "tree")] pub mod tree;
+#[cfg(feature = "true")] pub mod r#true;
 #[cfg(feature = "uname")] pub mod uname;
 #[cfg(feature = "unlink")] pub mod unlink;
+#[cfg(feature = "wc")] pub mod wc;
+#[cfg(feature = "whoami")] pub mod whoami;
+#[cfg(feature = "yes")] pub mod yes;

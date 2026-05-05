@@ -2,22 +2,29 @@
 name = "wasibox"
 version = "0.1.0"
 edition = "2024"
-authors = ["Antigravity <antigravity@google.com>"]
+authors = ["Antigravity <antigravity@google.com>", "oligami <nziq53@gmail.com>"]
 description = "BusyBox-like umbrella crate for WASI utilities and SL animation"
 license = "MIT"
 
 [features]
 default = [
     "sl", "arch", "cat", "cp", "dir", "echo", "link", "ln", "ls", "mkdir",
-    "mv", "pwd", "rm", "rmdir", "sleep", "tail", "tee", "touch", "tree", "uname", "unlink"
+    "mv", "pwd", "rm", "rmdir", "sleep", "tail", "tee", "touch", "tree", "uname", "unlink",
+    "head", "wc", "grep", "whoami", "basename", "dirname", "true", "false", "yes", "env"
 ]
 
 sl = ["sl-rust"]
 arch = ["wasi-core-utils/arch"]
+basename = ["wasi-core-utils/basename"]
 cat = ["wasi-core-utils/cat"]
 cp = ["wasi-core-utils/cp"]
 dir = ["wasi-core-utils/dir"]
+dirname = ["wasi-core-utils/dirname"]
 echo = ["wasi-core-utils/echo"]
+env = ["wasi-core-utils/env"]
+false = ["wasi-core-utils/false"]
+grep = ["wasi-core-utils/grep"]
+head = ["wasi-core-utils/head"]
 link = ["wasi-core-utils/link"]
 ln = ["wasi-core-utils/ln"]
 ls = ["wasi-core-utils/ls"]
@@ -31,8 +38,12 @@ tail = ["wasi-core-utils/tail"]
 tee = ["wasi-core-utils/tee"]
 touch = ["wasi-core-utils/touch"]
 tree = ["wasi-core-utils/tree"]
+true = ["wasi-core-utils/true"]
 uname = ["wasi-core-utils/uname"]
 unlink = ["wasi-core-utils/unlink"]
+wc = ["wasi-core-utils/wc"]
+whoami = ["wasi-core-utils/whoami"]
+yes = ["wasi-core-utils/yes"]
 
 [dependencies]
 sl-rust = { path = "../sl-rust", optional = true }

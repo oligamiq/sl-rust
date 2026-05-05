@@ -1,3 +1,5 @@
+#![cfg(not(target_os = "wasi"))]
+
 use std::process::Command;
 use std::fs;
 use tempfile::tempdir;

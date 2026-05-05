@@ -2,7 +2,7 @@
 name = "wasi-core-utils"
 version = "0.1.0"
 edition = "2024"
-authors = ["Antigravity <antigravity@google.com>"]
+authors = ["Antigravity <antigravity@google.com>", "oligami <nziq53@gmail.com>"]
 description = "A collection of core utilities optimized for WASI"
 license = "MIT"
 keywords = ["command-line-utilities", "wasi", "coreutils", "busybox"]
@@ -11,7 +11,8 @@ categories = ["command-line-utilities"]
 [features]
 default = [
     "arch", "cat", "cp", "dir", "echo", "link", "ln", "ls", "mkdir",
-    "mv", "pwd", "rm", "rmdir", "sleep", "tail", "tee", "touch", "tree", "uname", "unlink"
+    "mv", "pwd", "rm", "rmdir", "sleep", "tail", "tee", "touch", "tree", "uname", "unlink",
+    "head", "wc", "grep", "whoami", "basename", "dirname", "true", "false", "yes", "env"
 ]
 arch = []
 cat = []
@@ -33,6 +34,16 @@ touch = []
 tree = []
 uname = []
 unlink = []
+head = []
+wc = []
+grep = ["dep:regex"]
+whoami = []
+basename = []
+dirname = []
+true = []
+false = []
+yes = []
+env = []
 
 [lib]
 name = "wasi_core_utils"
@@ -46,6 +57,7 @@ path = "src/main.rs"
 clap = { version = "4.5", features = ["derive"] }
 colored = "3.0"
 chrono = "0.4"
+regex = { version = "1.10", optional = true }
 
 [target.'cfg(all(not(windows), not(target_os = "wasi")))'.dependencies]
 libc = "0.2"

@@ -35,14 +35,26 @@ fn main() {
         }
         #[cfg(feature = "arch")]
         "arch" => wasi_core_utils::utils::arch::execute(util_args),
+        #[cfg(feature = "basename")]
+        "basename" => wasi_core_utils::utils::basename::execute(util_args),
         #[cfg(feature = "cat")]
         "cat" => wasi_core_utils::utils::cat::execute(util_args),
         #[cfg(feature = "cp")]
         "cp" => wasi_core_utils::utils::cp::execute(util_args),
         #[cfg(feature = "dir")]
         "dir" => wasi_core_utils::utils::dir::execute(util_args),
+        #[cfg(feature = "dirname")]
+        "dirname" => wasi_core_utils::utils::dirname::execute(util_args),
         #[cfg(feature = "echo")]
         "echo" => wasi_core_utils::utils::echo::execute(util_args),
+        #[cfg(feature = "env")]
+        "env" => wasi_core_utils::utils::env::execute(util_args),
+        #[cfg(feature = "false")]
+        "false" => wasi_core_utils::utils::r#false::execute(util_args),
+        #[cfg(feature = "grep")]
+        "grep" => wasi_core_utils::utils::grep::execute(util_args),
+        #[cfg(feature = "head")]
+        "head" => wasi_core_utils::utils::head::execute(util_args),
         #[cfg(feature = "link")]
         "link" => wasi_core_utils::utils::link::execute(util_args),
         #[cfg(feature = "ln")]
@@ -69,10 +81,18 @@ fn main() {
         "touch" => wasi_core_utils::utils::touch::execute(util_args),
         #[cfg(feature = "tree")]
         "tree" => wasi_core_utils::utils::tree::execute(util_args),
+        #[cfg(feature = "true")]
+        "true" => wasi_core_utils::utils::r#true::execute(util_args),
         #[cfg(feature = "uname")]
         "uname" => wasi_core_utils::utils::uname::execute(util_args),
         #[cfg(feature = "unlink")]
         "unlink" => wasi_core_utils::utils::unlink::execute(util_args),
+        #[cfg(feature = "wc")]
+        "wc" => wasi_core_utils::utils::wc::execute(util_args),
+        #[cfg(feature = "whoami")]
+        "whoami" => wasi_core_utils::utils::whoami::execute(util_args),
+        #[cfg(feature = "yes")]
+        "yes" => wasi_core_utils::utils::yes::execute(util_args),
         _ => {
             Err(format!("Unknown utility: {}", util_name))
         }
