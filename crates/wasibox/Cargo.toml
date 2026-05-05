@@ -1,10 +1,10 @@
 [package]
 name = "wasibox"
-version = "0.1.0"
-edition = "2024"
-authors = ["Antigravity <antigravity@google.com>", "oligami <nziq53@gmail.com>"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 description = "BusyBox-like umbrella crate for WASI utilities and SL animation"
-license = "MIT"
+license.workspace = true
 
 [features]
 default = [
@@ -46,6 +46,6 @@ whoami = ["wasi-core-utils/whoami"]
 yes = ["wasi-core-utils/yes"]
 
 [dependencies]
-sl-rust = { path = "../sl-rust", optional = true }
+sl-rust = { workspace = true, optional = true }
 wasi-core-utils = { path = "../wasi-core-utils", optional = true, default-features = false }
-clap = { version = "4.5", features = ["derive"] }
+clap = { workspace = true }

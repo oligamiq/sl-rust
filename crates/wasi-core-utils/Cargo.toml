@@ -1,10 +1,10 @@
 [package]
 name = "wasi-core-utils"
-version = "0.1.0"
-edition = "2024"
-authors = ["Antigravity <antigravity@google.com>", "oligami <nziq53@gmail.com>"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
 description = "A collection of core utilities optimized for WASI"
-license = "MIT"
+license.workspace = true
 keywords = ["command-line-utilities", "wasi", "coreutils", "busybox"]
 categories = ["command-line-utilities"]
 
@@ -54,13 +54,13 @@ name = "core"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
-colored = "3.0"
-chrono = "0.4"
-regex = { version = "1.10", optional = true }
+clap = { workspace = true }
+colored = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true, optional = true }
 
 [target.'cfg(all(not(windows), not(target_os = "wasi")))'.dependencies]
-libc = "0.2"
+libc = { workspace = true }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = { workspace = true }

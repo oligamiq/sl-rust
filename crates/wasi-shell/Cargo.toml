@@ -1,16 +1,16 @@
 [package]
 name = "wasi-shell"
-version = "0.1.0"
-edition = "2024"
-authors = ["Antigravity <antigravity@google.com>", "oligami <nziq53@gmail.com>"]
-description = "A modular WASI-compatible shell"
-license = "MIT"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "A modular WASI-compatible shell with piping and redirection"
+license.workspace = true
 
 [dependencies]
 wasi-core-utils = { path = "../wasi-core-utils" }
-sl-rust = { path = "../sl-rust" }
-shlex = "1.3"
-colored = "3.0"
+sl-rust = { workspace = true }
+shlex = { workspace = true }
+colored = { workspace = true }
 
 [dev-dependencies]
-tempfile = "3.27.0"
+tempfile = { workspace = true }
