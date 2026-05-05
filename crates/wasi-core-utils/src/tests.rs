@@ -2,30 +2,10 @@
 mod tests {
     use crate::utils;
     use std::fs;
-    use std::env;
-    use std::path::Path;
 
     fn get_temp_dir() -> tempfile::TempDir {
         #[cfg(target_os = "wasi")]
         {
-            // Tiered fallback for WASI:
-            // 1. Check TMPDIR environment variable
-            if let Ok(tmp_env) = env::var("TMPDIR") {
-                if Path::new(&tmp_env).exists() {
-                    if let Ok(dir) = tempfile::Builder::new().prefix("test_").tempdir_in(&tmp_env) {
-                        return dir;
-                    }
-                }
-            }
-
-            // 2. Check /tmp (standard POSIX)
-            if Path::new("/tmp").exists() {
-                if let Ok(dir) = tempfile::Builder::new().prefix("test_").tempdir_in("/tmp") {
-                    return dir;
-                }
-            }
-
-            // 3. Fallback to current directory (guaranteed preopen in most test runners)
             tempfile::Builder::new().prefix("test_").tempdir_in(".").expect("Failed to create temp dir in current directory")
         }
         #[cfg(not(target_os = "wasi"))]

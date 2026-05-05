@@ -805,6 +805,7 @@ dependencies = [
  "colored",
  "shlex",
  "sl-rust",
+ "tempfile",
  "wasi-core-utils",
 ]
 
