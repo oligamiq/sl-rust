@@ -64,9 +64,52 @@ impl CommandRegistry {
 
         reg.register("help", |_args, ctx| {
             writeln!(ctx.stdout, "{}", "Available Commands:".yellow().bold()).map_err(|e| e.to_string())?;
-            writeln!(ctx.stdout, "  Shell Built-ins: cd, help, exit").map_err(|e| e.to_string())?;
+            
+            let mut shell_builtins = vec!["cd", "help", "exit"];
+            #[cfg(feature = "clear")] shell_builtins.push("clear");
+            shell_builtins.sort();
+            writeln!(ctx.stdout, "  Shell Built-ins: {}", shell_builtins.join(", ")).map_err(|e| e.to_string())?;
+
+            #[cfg(feature = "sl")]
             writeln!(ctx.stdout, "  Animations: sl").map_err(|e| e.to_string())?;
-            writeln!(ctx.stdout, "  Core Utilities: arch, cat, cp, dir, echo, grep, head, ls, mkdir, mv, pwd, rm, rmdir, seq, sleep, tail, tee, touch, tree, uname, wc, whoami, yes, etc.").map_err(|e| e.to_string())?;
+            
+            let mut utils = Vec::new();
+            #[cfg(feature = "arch")] utils.push("arch");
+            #[cfg(feature = "basename")] utils.push("basename");
+            #[cfg(feature = "cat")] utils.push("cat");
+            #[cfg(feature = "cp")] utils.push("cp");
+            #[cfg(feature = "dir")] utils.push("dir");
+            #[cfg(feature = "dirname")] utils.push("dirname");
+            #[cfg(feature = "echo")] utils.push("echo");
+            #[cfg(feature = "env")] utils.push("env");
+            #[cfg(feature = "false")] utils.push("false");
+            #[cfg(feature = "grep")] utils.push("grep");
+            #[cfg(feature = "head")] utils.push("head");
+            #[cfg(feature = "link")] utils.push("link");
+            #[cfg(feature = "ln")] utils.push("ln");
+            #[cfg(feature = "ls")] utils.push("ls");
+            #[cfg(feature = "mkdir")] utils.push("mkdir");
+            #[cfg(feature = "mv")] utils.push("mv");
+            #[cfg(feature = "pwd")] utils.push("pwd");
+            #[cfg(feature = "rm")] utils.push("rm");
+            #[cfg(feature = "rmdir")] utils.push("rmdir");
+            #[cfg(feature = "seq")] utils.push("seq");
+            #[cfg(feature = "sleep")] utils.push("sleep");
+            #[cfg(feature = "tail")] utils.push("tail");
+            #[cfg(feature = "tee")] utils.push("tee");
+            #[cfg(feature = "touch")] utils.push("touch");
+            #[cfg(feature = "tree")] utils.push("tree");
+            #[cfg(feature = "true")] utils.push("true");
+            #[cfg(feature = "uname")] utils.push("uname");
+            #[cfg(feature = "unlink")] utils.push("unlink");
+            #[cfg(feature = "wc")] utils.push("wc");
+            #[cfg(feature = "whoami")] utils.push("whoami");
+            #[cfg(feature = "yes")] utils.push("yes");
+            
+            if !utils.is_empty() {
+                utils.sort();
+                writeln!(ctx.stdout, "  Core Utilities: {}", utils.join(", ")).map_err(|e| e.to_string())?;
+            }
             Ok(())
         });
 
@@ -77,10 +120,81 @@ impl CommandRegistry {
 
         reg.register("exit", |_args, _ctx| Ok(()));
 
+        #[cfg(feature = "clear")]
+        reg.register("clear", |_args, ctx| {
+            write!(ctx.stdout, "\x1B[2J\x1B[1;1H").map_err(|e| e.to_string())?;
+            ctx.stdout.flush().map_err(|e| e.to_string())
+        });
+
+        #[cfg(feature = "sl")]
         reg.register("sl", |args, _ctx| {
             let _ = sl::run(args.iter().cloned());
             Ok(())
         });
+
+        // Register coreutils from wasibox-core
+        #[cfg(feature = "arch")]
+        reg.register("arch", |args, ctx| wasibox_core::utils::arch::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "basename")]
+        reg.register("basename", |args, ctx| wasibox_core::utils::basename::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "cat")]
+        reg.register("cat", |args, ctx| wasibox_core::utils::cat::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "cp")]
+        reg.register("cp", |args, ctx| wasibox_core::utils::cp::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "dir")]
+        reg.register("dir", |args, ctx| wasibox_core::utils::dir::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "dirname")]
+        reg.register("dirname", |args, ctx| wasibox_core::utils::dirname::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "echo")]
+        reg.register("echo", |args, ctx| wasibox_core::utils::echo::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "env")]
+        reg.register("env", |args, ctx| wasibox_core::utils::env::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "false")]
+        reg.register("false", |args, ctx| wasibox_core::utils::r#false::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "grep")]
+        reg.register("grep", |args, ctx| wasibox_core::utils::grep::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "head")]
+        reg.register("head", |args, ctx| wasibox_core::utils::head::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "link")]
+        reg.register("link", |args, ctx| wasibox_core::utils::link::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "ln")]
+        reg.register("ln", |args, ctx| wasibox_core::utils::ln::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "ls")]
+        reg.register("ls", |args, ctx| wasibox_core::utils::ls::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "mkdir")]
+        reg.register("mkdir", |args, ctx| wasibox_core::utils::mkdir::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "mv")]
+        reg.register("mv", |args, ctx| wasibox_core::utils::mv::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "pwd")]
+        reg.register("pwd", |args, ctx| wasibox_core::utils::pwd::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "rm")]
+        reg.register("rm", |args, ctx| wasibox_core::utils::rm::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "rmdir")]
+        reg.register("rmdir", |args, ctx| wasibox_core::utils::rmdir::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "seq")]
+        reg.register("seq", |args, ctx| wasibox_core::utils::seq::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "sleep")]
+        reg.register("sleep", |args, ctx| wasibox_core::utils::sleep::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "tail")]
+        reg.register("tail", |args, ctx| wasibox_core::utils::tail::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "tee")]
+        reg.register("tee", |args, ctx| wasibox_core::utils::tee::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "touch")]
+        reg.register("touch", |args, ctx| wasibox_core::utils::touch::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "tree")]
+        reg.register("tree", |args, ctx| wasibox_core::utils::tree::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "true")]
+        reg.register("true", |args, ctx| wasibox_core::utils::r#true::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "uname")]
+        reg.register("uname", |args, ctx| wasibox_core::utils::uname::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "unlink")]
+        reg.register("unlink", |args, ctx| wasibox_core::utils::unlink::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "wc")]
+        reg.register("wc", |args, ctx| wasibox_core::utils::wc::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "whoami")]
+        reg.register("whoami", |args, ctx| wasibox_core::utils::whoami::execute_with_context(args.iter().cloned(), ctx));
+        #[cfg(feature = "yes")]
+        reg.register("yes", |args, ctx| wasibox_core::utils::yes::execute_with_context(args.iter().cloned(), ctx));
 
         reg
     }
