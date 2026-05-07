@@ -350,10 +350,19 @@ pub fn handle_parallel(
 
     for line in lines {
         let registry = Arc::clone(&registry);
-        let stdin: Box<dyn Read + Send> = stdin_opt.take().unwrap_or_else(|| Box::new(io::empty()));
-        let stdout: Box<dyn Write + Send> = stdout_opt.take().unwrap_or_else(|| Box::new(io::stdout()));
+        let mut stdin_for_thread: Option<Box<dyn Read + Send>> = Some(stdin_opt.take().unwrap_or_else(|| Box::new(io::empty())));
+        let mut stdout_for_thread: Option<Box<dyn Write + Send>> = Some(stdout_opt.take().unwrap_or_else(|| Box::new(io::stdout())));
+        
         let handle = std::thread::spawn(move || {
-            handle_pipeline(&line, stdin, stdout, &*registry)
+            let commands: Vec<&str> = line.split("&&").collect();
+            for cmd in commands {
+                let cmd = cmd.trim();
+                if cmd.is_empty() { continue; }
+                let stdin = stdin_for_thread.take().unwrap_or_else(|| Box::new(io::empty()));
+                let stdout = stdout_for_thread.take().unwrap_or_else(|| Box::new(io::stdout()));
+                handle_pipeline(cmd, stdin, stdout, &*registry)?;
+            }
+            Ok(())
         });
         handles.push(handle);
     }
@@ -361,6 +370,23 @@ pub fn handle_parallel(
     handles.into_iter()
         .map(|h| h.join().unwrap_or(Err("Thread panicked".to_string())))
         .collect()
+}
+
+/// Execute a complete command line, splitting by `&&` and running sequentially.
+/// Stops execution if any command in the sequence fails.
+pub fn handle_command_line(
+    line: &str,
+    registry: &CommandRegistry,
+) -> Result<(), String> {
+    let commands: Vec<&str> = line.split("&&").collect();
+    for cmd in commands {
+        let cmd = cmd.trim();
+        if cmd.is_empty() {
+            continue;
+        }
+        handle_pipeline(cmd, Box::new(io::stdin()), Box::new(io::stdout()), registry)?;
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -682,6 +708,21 @@ mod tests {
     }
 
     #[test]
+    fn test_seq_pipeline_grep_head_5() {
+        let out = Arc::new(Mutex::new(Vec::new()));
+        handle_pipeline("seq | grep 2 | head -n 5", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        let buf = out.lock().unwrap();
+        let result = String::from_utf8_lossy(&buf);
+        let lines: Vec<&str> = result.trim().lines().collect();
+        assert_eq!(lines.len(), 5);
+        assert_eq!(lines[0], "2");
+        assert_eq!(lines[1], "12");
+        assert_eq!(lines[2], "20");
+        assert_eq!(lines[3], "21");
+        assert_eq!(lines[4], "22");
+    }
+
+    #[test]
     fn test_seq_finite() {
         let out = Arc::new(Mutex::new(Vec::new()));
         handle_pipeline("seq 3", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
@@ -730,4 +771,41 @@ mod tests {
         // Restore original cwd
         env::set_current_dir(original_cwd).unwrap();
     }
+
+    // ── sequence (&&) tests ─────────────────────────────────────────────
+
+    #[test]
+    fn test_command_line_sequence() {
+        let mut reg = CommandRegistry::with_builtins();
+        let counter = Arc::new(Mutex::new(0));
+        let c1 = Arc::clone(&counter);
+        reg.register("inc", move |_args, _ctx| {
+            *c1.lock().unwrap() += 1;
+            Ok(())
+        });
+
+        // inc && inc && inc
+        crate::handle_command_line("inc && inc && inc", &reg).unwrap();
+        assert_eq!(*counter.lock().unwrap(), 3);
+    }
+
+    #[test]
+    fn test_command_line_short_circuit() {
+        let mut reg = CommandRegistry::with_builtins();
+        let counter = Arc::new(Mutex::new(0));
+        let c1 = Arc::clone(&counter);
+        reg.register("inc", move |_args, _ctx| {
+            *c1.lock().unwrap() += 1;
+            Ok(())
+        });
+        reg.register("fail", |_args, _ctx| Err("simulated failure".to_string()));
+
+        // inc && fail && inc
+        // Should stop after "fail"
+        let res = crate::handle_command_line("inc && fail && inc", &reg);
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "simulated failure");
+        assert_eq!(*counter.lock().unwrap(), 1); // Only the first "inc" should execute
+    }
 }
+
