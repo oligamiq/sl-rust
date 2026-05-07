@@ -5,12 +5,39 @@ mod tests;
 use std::ffi::OsString;
 use std::path::Path;
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+/// A token to cancel running commands.
+#[derive(Clone, Default)]
+pub struct CancellationToken {
+    flag: Arc<AtomicBool>,
+}
+
+impl CancellationToken {
+    pub fn new() -> Self {
+        Self { flag: Arc::new(AtomicBool::new(false)) }
+    }
+
+    pub fn cancel(&self) {
+        self.flag.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.flag.load(Ordering::SeqCst)
+    }
+
+    pub fn reset(&self) {
+        self.flag.store(false, Ordering::SeqCst);
+    }
+}
 
 /// Context for utility IO, allowing redirection of stdin, stdout, and stderr.
 pub struct IoContext {
     pub stdin: Box<dyn Read + Send>,
     pub stdout: Box<dyn Write + Send>,
     pub stderr: Box<dyn Write + Send>,
+    pub cancel_token: CancellationToken,
 }
 
 impl IoContext {
@@ -19,7 +46,16 @@ impl IoContext {
         stdout: Box<dyn Write + Send>,
         stderr: Box<dyn Write + Send>,
     ) -> Self {
-        Self { stdin, stdout, stderr }
+        Self { stdin, stdout, stderr, cancel_token: CancellationToken::new() }
+    }
+
+    pub fn with_cancel(
+        stdin: Box<dyn Read + Send>,
+        stdout: Box<dyn Write + Send>,
+        stderr: Box<dyn Write + Send>,
+        cancel_token: CancellationToken,
+    ) -> Self {
+        Self { stdin, stdout, stderr, cancel_token }
     }
 }
 
@@ -29,6 +65,7 @@ impl Default for IoContext {
             stdin: Box::new(std::io::stdin()),
             stdout: Box::new(std::io::stdout()),
             stderr: Box::new(std::io::stderr()),
+            cancel_token: CancellationToken::new(),
         }
     }
 }

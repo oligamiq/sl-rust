@@ -38,7 +38,7 @@ pub type CommandFn = Arc<dyn Fn(&[String], &mut IoContext) -> Result<(), String>
 ///     writeln!(ctx.stdout, "Hello, {}!", name).map_err(|e| e.to_string())
 /// });
 ///
-/// handle_pipeline("greet Rust", Box::new(io::empty()), Box::new(io::stdout()), &reg).unwrap();
+/// handle_pipeline("greet Rust", Box::new(io::empty()), Box::new(io::stdout()), &reg, wasibox_core::CancellationToken::new()).unwrap();
 /// ```
 pub struct CommandRegistry {
     commands: HashMap<String, CommandFn>,
@@ -266,6 +266,7 @@ pub fn handle_pipeline(
     initial_stdin: Box<dyn Read + Send + 'static>,
     final_stdout: Box<dyn Write + Send + 'static>,
     registry: &CommandRegistry,
+    cancel_token: wasibox_core::CancellationToken,
 ) -> Result<(), String> {
     let stages_str: Vec<&str> = line.split('|').collect();
 
@@ -296,7 +297,7 @@ pub fn handle_pipeline(
                 }
                 (out, None)
             } else {
-                let (reader, writer) = create_pipe();
+                let (reader, writer) = create_pipe(cancel_token.clone());
                 (Box::new(writer), Some(Box::new(reader)))
             };
 
@@ -304,9 +305,21 @@ pub fn handle_pipeline(
                 prev_reader = r;
             }
 
+            let cancel_clone = cancel_token.clone();
             let thread = s.spawn(move || {
-                let mut ctx = IoContext::new(stdin, stdout, Box::new(io::stderr()));
-                registry.execute(&tokens, &mut ctx)
+                if cancel_clone.is_cancelled() {
+                    return Err("Interrupted".to_string());
+                }
+                let wrapped_stdin = Box::new(CancelReader { inner: stdin, token: cancel_clone.clone() });
+                let wrapped_stdout = Box::new(CancelWriter { inner: stdout, token: cancel_clone.clone() });
+                let wrapped_stderr = Box::new(CancelWriter { inner: Box::new(io::stderr()), token: cancel_clone.clone() });
+                
+                let mut ctx = IoContext::with_cancel(wrapped_stdin, wrapped_stdout, wrapped_stderr, cancel_clone.clone());
+                let res = registry.execute(&tokens, &mut ctx);
+                if cancel_clone.is_cancelled() {
+                    return Err("Interrupted".to_string());
+                }
+                res
             });
             threads.push((i, thread));
         }
@@ -346,6 +359,7 @@ pub fn handle_parallel(
     initial_stdin: Box<dyn Read + Send + 'static>,
     final_stdout: Box<dyn Write + Send + 'static>,
     registry: Arc<CommandRegistry>,
+    cancel_token: wasibox_core::CancellationToken,
 ) -> Vec<Result<(), String>> {
     let mut handles = Vec::new();
     let mut stdin_opt: Option<Box<dyn Read + Send>> = Some(initial_stdin);
@@ -356,14 +370,16 @@ pub fn handle_parallel(
         let mut stdin_for_thread: Option<Box<dyn Read + Send>> = Some(stdin_opt.take().unwrap_or_else(|| Box::new(io::empty())));
         let mut stdout_for_thread: Option<Box<dyn Write + Send>> = Some(stdout_opt.take().unwrap_or_else(|| Box::new(io::stdout())));
         
+        let cancel_clone = cancel_token.clone();
         let handle = std::thread::spawn(move || {
             let commands: Vec<&str> = line.split("&&").collect();
             for cmd in commands {
                 let cmd = cmd.trim();
                 if cmd.is_empty() { continue; }
+                if cancel_clone.is_cancelled() { return Err("Interrupted".to_string()); }
                 let stdin = stdin_for_thread.take().unwrap_or_else(|| Box::new(io::empty()));
                 let stdout = stdout_for_thread.take().unwrap_or_else(|| Box::new(io::stdout()));
-                handle_pipeline(cmd, stdin, stdout, &*registry)?;
+                handle_pipeline(cmd, stdin, stdout, &*registry, cancel_clone.clone())?;
             }
             Ok(())
         });
@@ -380,6 +396,7 @@ pub fn handle_parallel(
 pub fn handle_command_line(
     line: &str,
     registry: &CommandRegistry,
+    cancel_token: wasibox_core::CancellationToken,
 ) -> Result<(), String> {
     let commands: Vec<&str> = line.split("&&").collect();
     for cmd in commands {
@@ -387,7 +404,8 @@ pub fn handle_command_line(
         if cmd.is_empty() {
             continue;
         }
-        handle_pipeline(cmd, Box::new(io::stdin()), Box::new(io::stdout()), registry)?;
+        if cancel_token.is_cancelled() { return Err("Interrupted".to_string()); }
+        handle_pipeline(cmd, Box::new(io::stdin()), Box::new(io::stdout()), registry, cancel_token.clone())?;
     }
     Ok(())
 }
@@ -396,20 +414,63 @@ pub fn handle_command_line(
 // Pipe implementation
 // ---------------------------------------------------------------------------
 
+struct CancelReader<R: Read> {
+    inner: R,
+    token: wasibox_core::CancellationToken,
+}
+impl<R: Read> Read for CancelReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.token.is_cancelled() {
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "Interrupted"));
+        }
+        self.inner.read(buf)
+    }
+}
+
+struct CancelWriter<W: Write> {
+    inner: W,
+    token: wasibox_core::CancellationToken,
+}
+impl<W: Write> Write for CancelWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.token.is_cancelled() {
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "Interrupted"));
+        }
+        self.inner.write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        if self.token.is_cancelled() {
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "Interrupted"));
+        }
+        self.inner.flush()
+    }
+}
+
 struct PipeReader {
     rx: std::sync::mpsc::Receiver<Vec<u8>>,
     buffer: Vec<u8>,
     pos: usize,
+    token: wasibox_core::CancellationToken,
 }
 impl Read for PipeReader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.token.is_cancelled() {
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "Interrupted"));
+        }
         if self.pos >= self.buffer.len() {
-            match self.rx.recv() {
-                Ok(data) => {
-                    self.buffer = data;
-                    self.pos = 0;
+            loop {
+                if self.token.is_cancelled() {
+                    return Err(io::Error::new(io::ErrorKind::BrokenPipe, "Interrupted"));
                 }
-                Err(_) => return Ok(0), // Writer dropped = EOF
+                match self.rx.recv_timeout(std::time::Duration::from_millis(100)) {
+                    Ok(data) => {
+                        self.buffer = data;
+                        self.pos = 0;
+                        break;
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Ok(0),
+                }
             }
         }
         let available = self.buffer.len() - self.pos;
@@ -421,19 +482,23 @@ impl Read for PipeReader {
 }
 
 struct PipeWriter {
-    tx: std::sync::mpsc::Sender<Vec<u8>>,
+    tx: std::sync::mpsc::SyncSender<Vec<u8>>,
+    token: wasibox_core::CancellationToken,
 }
 impl Write for PipeWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.token.is_cancelled() {
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "Interrupted"));
+        }
         self.tx.send(buf.to_vec()).map_err(|e| io::Error::new(io::ErrorKind::BrokenPipe, e))?;
         Ok(buf.len())
     }
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
-fn create_pipe() -> (PipeReader, PipeWriter) {
-    let (tx, rx) = std::sync::mpsc::channel();
-    (PipeReader { rx, buffer: Vec::new(), pos: 0 }, PipeWriter { tx })
+fn create_pipe(token: wasibox_core::CancellationToken) -> (PipeReader, PipeWriter) {
+    let (tx, rx) = std::sync::mpsc::sync_channel(1024);
+    (PipeReader { rx, buffer: Vec::new(), pos: 0, token: token.clone() }, PipeWriter { tx, token })
 }
 
 // ---------------------------------------------------------------------------
@@ -486,7 +551,7 @@ mod tests {
     #[test]
     fn test_simple_echo() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("echo hello", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "hello");
     }
@@ -494,7 +559,7 @@ mod tests {
     #[test]
     fn test_pipe_echo_cat() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello | cat", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("echo hello | cat", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "hello");
     }
@@ -502,7 +567,7 @@ mod tests {
     #[test]
     fn test_pipe_grep() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo world | grep world", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("echo world | grep world", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "world");
     }
@@ -512,7 +577,7 @@ mod tests {
         let dir = get_temp_dir();
         let file_path = dir.path().join("test_create.txt");
         let cmd = format!("echo hello > \"{}\"", file_path.display());
-        handle_pipeline(&cmd, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins()).unwrap();
+        handle_pipeline(&cmd, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let content = std::fs::read_to_string(file_path).unwrap();
         assert_eq!(content.trim(), "hello");
     }
@@ -522,9 +587,9 @@ mod tests {
         let dir = get_temp_dir();
         let file_path = dir.path().join("test_append.txt");
         let cmd1 = format!("echo hello > \"{}\"", file_path.display());
-        handle_pipeline(&cmd1, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins()).unwrap();
+        handle_pipeline(&cmd1, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let cmd2 = format!("echo world >> \"{}\"", file_path.display());
-        handle_pipeline(&cmd2, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins()).unwrap();
+        handle_pipeline(&cmd2, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let content = std::fs::read_to_string(file_path).unwrap();
         assert!(content.contains("hello"));
         assert!(content.contains("world"));
@@ -533,7 +598,7 @@ mod tests {
     #[test]
     fn test_complex_pipeline() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello | grep h | wc -c", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("echo hello | grep h | wc -c", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "6");
     }
@@ -548,7 +613,7 @@ mod tests {
         });
 
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("magic", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg).unwrap();
+        handle_pipeline("magic", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf), "magic happen");
     }
@@ -570,7 +635,7 @@ mod tests {
         });
 
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello | double", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg).unwrap();
+        handle_pipeline("echo hello | double", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "hello\nhello");
     }
@@ -585,7 +650,7 @@ mod tests {
         });
 
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg).unwrap();
+        handle_pipeline("echo hello", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "HELLO");
     }
@@ -639,6 +704,7 @@ mod tests {
             Box::new(io::empty()),
             Box::new(ArcVecWriter { inner: Arc::clone(&out) }),
             &reg,
+            wasibox_core::CancellationToken::new(),
         ).unwrap();
 
         let buf = out.lock().unwrap();
@@ -666,7 +732,7 @@ mod tests {
 
         let lines = vec!["slow".to_string(), "slow".to_string(), "slow".to_string()];
         let start = std::time::Instant::now();
-        let results = handle_parallel(lines, Box::new(io::empty()), Box::new(io::sink()), registry);
+        let results = handle_parallel(lines, Box::new(io::empty()), Box::new(io::sink()), registry, wasibox_core::CancellationToken::new());
         let duration = start.elapsed();
 
         assert_eq!(results.len(), 3);
@@ -681,7 +747,7 @@ mod tests {
     #[test]
     fn test_streaming_pipeline() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("yes | head -n 2", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("yes | head -n 2", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "y\ny");
     }
@@ -689,7 +755,7 @@ mod tests {
     #[test]
     fn test_seq_pipeline_head() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq | head -n 5", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("seq | head -n 5", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "1\n2\n3\n4\n5");
     }
@@ -697,7 +763,7 @@ mod tests {
     #[test]
     fn test_seq_pipeline_grep_head() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq | grep 2 | head -n 3", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("seq | grep 2 | head -n 3", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         let result = String::from_utf8_lossy(&buf);
         let lines: Vec<&str> = result.trim().lines().collect();
@@ -713,7 +779,7 @@ mod tests {
     #[test]
     fn test_seq_pipeline_grep_head_5() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq | grep 2 | head -n 5", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("seq | grep 2 | head -n 5", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         let result = String::from_utf8_lossy(&buf);
         let lines: Vec<&str> = result.trim().lines().collect();
@@ -728,7 +794,7 @@ mod tests {
     #[test]
     fn test_seq_finite() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq 3", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("seq 3", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "1\n2\n3");
     }
@@ -736,7 +802,7 @@ mod tests {
     #[test]
     fn test_seq_range() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq 5 8", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("seq 5 8", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "5\n6\n7\n8");
     }
@@ -744,7 +810,7 @@ mod tests {
     #[test]
     fn test_seq_step() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq 1 2 10", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins()).unwrap();
+        handle_pipeline("seq 1 2 10", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "1\n3\n5\n7\n9");
     }
@@ -760,11 +826,11 @@ mod tests {
 
         // cd into the temp directory
         let cd_cmd = format!("cd \"{}\"", dir.path().display());
-        handle_pipeline(&cd_cmd, Box::new(io::empty()), Box::new(io::sink()), &reg).unwrap();
+        handle_pipeline(&cd_cmd, Box::new(io::empty()), Box::new(io::sink()), &reg, wasibox_core::CancellationToken::new()).unwrap();
 
         // ls the current directory (should now be the temp dir)
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("ls", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg).unwrap();
+        handle_pipeline("ls", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
 
         let buf = out.lock().unwrap();
         let output = String::from_utf8_lossy(&buf);
@@ -788,7 +854,7 @@ mod tests {
         });
 
         // inc && inc && inc
-        crate::handle_command_line("inc && inc && inc", &reg).unwrap();
+        crate::handle_command_line("inc && inc && inc", &reg, wasibox_core::CancellationToken::new()).unwrap();
         assert_eq!(*counter.lock().unwrap(), 3);
     }
 
@@ -805,10 +871,64 @@ mod tests {
 
         // inc && fail && inc
         // Should stop after "fail"
-        let res = crate::handle_command_line("inc && fail && inc", &reg);
+        let res = crate::handle_command_line("inc && fail && inc", &reg, wasibox_core::CancellationToken::new());
         assert!(res.is_err());
         assert_eq!(res.unwrap_err(), "simulated failure");
         assert_eq!(*counter.lock().unwrap(), 1); // Only the first "inc" should execute
+    }
+
+    #[test]
+    fn test_handle_parallel_cancel() {
+        println!("STARTING TEST");
+        let registry = Arc::new(builtins());
+        let cancel_token = wasibox_core::CancellationToken::new();
+        let cancel_clone = cancel_token.clone();
+        
+        let thread = std::thread::spawn(move || {
+            println!("THREAD SPAWNED");
+            super::handle_parallel(
+                vec!["yes".to_string()],
+                Box::new(std::io::empty()),
+                Box::new(std::io::sink()),
+                registry,
+                cancel_clone,
+            )
+        });
+        
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        println!("CANCELLING TOKEN");
+        cancel_token.cancel();
+        
+        println!("JOINING THREAD");
+        let results = thread.join().unwrap();
+        println!("RESULTS: {:?}", results);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_err());
+        assert_eq!(results[0].as_ref().unwrap_err(), "Interrupted");
+    }
+
+    #[test]
+    fn test_pipeline_cancel() {
+        let registry = builtins();
+        let cancel_token = wasibox_core::CancellationToken::new();
+        let cancel_clone = cancel_token.clone();
+        
+        let thread = std::thread::spawn(move || {
+            super::handle_pipeline(
+                "yes | grep y",
+                Box::new(std::io::empty()),
+                Box::new(std::io::sink()),
+                &registry,
+                cancel_clone,
+            )
+        });
+        
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        cancel_token.cancel();
+        
+        let result = thread.join().unwrap();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Interrupted");
     }
 }
 

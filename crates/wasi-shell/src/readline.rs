@@ -187,7 +187,7 @@ impl LineReader {
     /// Read a line interactively with arrow-key history navigation.
     ///
     /// Returns `Ok(Some(line))` on success, `Ok(None)` on EOF (Ctrl-D).
-    pub fn read_line(&mut self, prompt: &str) -> io::Result<Option<String>> {
+    pub fn read_line(&mut self, prompt: &str, cancel_token: Option<wasibox_core::CancellationToken>) -> io::Result<Option<String>> {
         let mut stdout = io::stdout();
         write!(stdout, "{}", prompt)?;
         stdout.flush()?;
@@ -195,7 +195,7 @@ impl LineReader {
         let _guard = RawModeGuard::enter()?;
 
         let mut reader = io::stdin();
-        self.read_line_from(&mut reader, &mut stdout, prompt)
+        self.read_line_from(&mut reader, &mut stdout, prompt, cancel_token)
     }
 
     /// Run an interactive REPL loop, delegating each line to `handler`.
@@ -204,14 +204,14 @@ impl LineReader {
     /// - The handler returns `Ok(LoopAction::Break)`
     /// - EOF is reached (Ctrl-D)
     /// - An I/O error occurs
-    pub fn run_loop<P, H>(&mut self, prompt_fn: P, handler: &H) -> io::Result<()>
+    pub fn run_loop<P, H>(&mut self, prompt_fn: P, handler: &H, cancel_token: wasibox_core::CancellationToken) -> io::Result<()>
     where
         P: Fn() -> String,
         H: LineHandler,
     {
         loop {
             let prompt = prompt_fn();
-            match self.read_line(&prompt)? {
+            match self.read_line(&prompt, Some(cancel_token.clone()))? {
                 None => break,
                 Some(line) => {
                     let trimmed = line.trim();
@@ -239,11 +239,12 @@ impl LineReader {
         writer: &mut W,
         prompt: &str,
         handler: &H,
+        cancel_token: Option<wasibox_core::CancellationToken>,
     ) -> io::Result<()> {
         loop {
             write!(writer, "{}", prompt)?;
             writer.flush()?;
-            match self.read_line_from(reader, writer, prompt)? {
+            match self.read_line_from(reader, writer, prompt, cancel_token.clone())? {
                 None => break,
                 Some(line) => {
                     let trimmed = line.trim();
@@ -270,6 +271,7 @@ impl LineReader {
         reader: &mut R,
         writer: &mut W,
         prompt: &str,
+        cancel_token: Option<wasibox_core::CancellationToken>,
     ) -> io::Result<Option<String>> {
         let mut line = String::new();
         let mut cursor_pos: usize = 0;
@@ -293,6 +295,9 @@ impl LineReader {
                 }
                 // Ctrl-C => discard line
                 3 => {
+                    if let Some(token) = &cancel_token {
+                        token.cancel();
+                    }
                     write!(writer, "^C\r\n")?;
                     writer.flush()?;
                     return Ok(Some(String::new()));
@@ -494,7 +499,7 @@ mod tests {
         let mut reader = LineReader::new(100);
         let mut input = keys(&[b"hello", ENTER]);
         let mut out = Vec::new();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("hello".to_string()));
     }
 
@@ -503,7 +508,7 @@ mod tests {
         let mut reader = LineReader::new(100);
         let mut input = Cursor::new(vec![4u8]); // Ctrl-D
         let mut out = Vec::new();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, None);
     }
 
@@ -514,12 +519,12 @@ mod tests {
 
         // First command
         let mut input = keys(&[b"echo hello", ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
 
         // Second command: press Up then Enter (should recall "echo hello")
         let mut input = keys(&[UP, ENTER]);
         out.clear();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("echo hello".to_string()));
     }
 
@@ -530,14 +535,14 @@ mod tests {
 
         // Enter two commands
         let mut input = keys(&[b"first", ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         let mut input = keys(&[b"second", ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
 
         // Up twice => "first", Down once => "second", Enter
         let mut input = keys(&[UP, UP, DOWN, ENTER]);
         out.clear();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("second".to_string()));
     }
 
@@ -548,12 +553,12 @@ mod tests {
 
         // Enter a command into history
         let mut input = keys(&[b"old", ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
 
         // Type "new", press Up (recalls "old"), press Down (restores "new"), Enter
         let mut input = keys(&[b"new", UP, DOWN, ENTER]);
         out.clear();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("new".to_string()));
     }
 
@@ -564,15 +569,15 @@ mod tests {
 
         // Enter same command twice
         let mut input = keys(&[b"dup", ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         let mut input = keys(&[b"dup", ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
 
         // Up should recall "dup", another Up should NOT go further
         // (only one entry in history)
         let mut input = keys(&[UP, UP, ENTER]);
         out.clear();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("dup".to_string()));
     }
 
@@ -583,13 +588,13 @@ mod tests {
 
         for cmd in &["aaa", "bbb", "ccc", "ddd"] {
             let mut input = keys(&[cmd.as_bytes(), ENTER]);
-            reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+            reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         }
 
         // Up 3 times should stop at "bbb" (oldest "aaa" was evicted)
         let mut input = keys(&[UP, UP, UP, ENTER]);
         out.clear();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("bbb".to_string()));
     }
 
@@ -598,7 +603,7 @@ mod tests {
         let mut reader = LineReader::new(100);
         let mut input = keys(&[b"helloo", &[127], ENTER]);
         let mut out = Vec::new();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("hello".to_string()));
     }
 
@@ -607,7 +612,7 @@ mod tests {
         let mut reader = LineReader::new(100);
         let mut input = keys(&[b"garbage", &[21], b"clean", ENTER]); // Ctrl-U = 21
         let mut out = Vec::new();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("clean".to_string()));
     }
 
@@ -618,16 +623,16 @@ mod tests {
 
         // Enter a real command
         let mut input = keys(&[b"real", ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
 
         // Enter an empty line
         let mut input = keys(&[ENTER]);
-        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
 
         // Up should still recall "real", not empty
         let mut input = keys(&[UP, ENTER]);
         out.clear();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("real".to_string()));
     }
 
@@ -649,7 +654,7 @@ mod tests {
         // Type two commands then Ctrl-D
         let mut input = keys(&[b"echo hello", ENTER, b"ls", ENTER, &[4]]);
         let mut out = Vec::new();
-        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler, None).unwrap();
 
         let cmds = executed.lock().unwrap();
         assert_eq!(cmds.len(), 2);
@@ -670,7 +675,7 @@ mod tests {
         let mut reader = LineReader::new(100);
         let mut input = keys(&[b"cmd1", ENTER, b"exit", ENTER, b"cmd2", ENTER]);
         let mut out = Vec::new();
-        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler, None).unwrap();
         // Loop should have stopped after "exit"; "cmd2" is never processed.
     }
 
@@ -693,7 +698,7 @@ mod tests {
         let mut reader = LineReader::new(100);
         let mut input = keys(&[b"ok", ENTER, b"fail", ENTER, b"ok2", ENTER, &[4]]);
         let mut out = Vec::new();
-        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler, None).unwrap();
 
         // All three commands should have been processed (error doesn't stop loop)
         assert_eq!(*count.lock().unwrap(), 3);
@@ -719,7 +724,7 @@ mod tests {
             &[4],       // EOF
         ]);
         let mut out = Vec::new();
-        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler, None).unwrap();
 
         let cmds = executed.lock().unwrap();
         assert_eq!(cmds.len(), 2);
@@ -747,6 +752,7 @@ mod tests {
                 Box::new(std::io::empty()),
                 Box::new(ArcVecWriter { inner: Arc::clone(&out_ref) }),
                 Arc::clone(&reg),
+                wasibox_core::CancellationToken::new(),
             );
             for res in results {
                 res?;
@@ -762,7 +768,7 @@ mod tests {
             b"exit", ENTER,
         ]);
         let mut term_out = Vec::new();
-        reader.run_loop_from(&mut input, &mut term_out, "$ ", &handler).unwrap();
+        reader.run_loop_from(&mut input, &mut term_out, "$ ", &handler, None).unwrap();
 
         let buf = output.lock().unwrap();
         let result = String::from_utf8_lossy(&buf);

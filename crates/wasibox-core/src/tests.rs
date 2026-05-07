@@ -165,4 +165,14 @@ mod tests {
         assert!(utils::ln::execute(args).is_ok());
         assert!(dst2.exists());
     }
+
+    #[test]
+    fn test_cancel_token_basic() {
+        let token = crate::CancellationToken::new();
+        assert!(!token.is_cancelled());
+        token.cancel();
+        assert!(token.is_cancelled());
+        token.reset();
+        assert!(!token.is_cancelled());
+    }
 }
