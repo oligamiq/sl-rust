@@ -7,7 +7,7 @@ use colored::*;
 pub use wasibox_core::IoContext;
 
 mod readline;
-pub use readline::LineReader;
+pub use readline::{LineReader, LineHandler, LoopAction};
 
 // ---------------------------------------------------------------------------
 // CommandRegistry

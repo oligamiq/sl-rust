@@ -93,8 +93,6 @@ impl Drop for RawModeGuard {
 }
 
 // ---- WASI ----
-// On WASI the host runtime controls the terminal mode.
-// We assume the host provides character-at-a-time input.
 
 #[cfg(target_os = "wasi")]
 struct RawModeGuard;
@@ -107,13 +105,39 @@ impl RawModeGuard {
 }
 
 // ---------------------------------------------------------------------------
-// Byte reader
+// LineHandler trait
 // ---------------------------------------------------------------------------
 
-fn read_byte() -> io::Result<u8> {
-    let mut buf = [0u8; 1];
-    io::stdin().read_exact(&mut buf)?;
-    Ok(buf[0])
+/// Trait for handling lines read by [`LineReader`].
+///
+/// Implement this to inject command-execution logic into the REPL loop.
+///
+/// # Return values
+///
+/// - `Ok(LoopAction::Continue)` — prompt for the next line.
+/// - `Ok(LoopAction::Break)` — exit the loop normally.
+/// - `Err(msg)` — print the error and continue.
+pub trait LineHandler {
+    fn handle_line(&self, line: &str) -> Result<LoopAction, String>;
+}
+
+/// Controls the REPL loop flow after a line is handled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopAction {
+    /// Continue reading the next line.
+    Continue,
+    /// Exit the REPL loop.
+    Break,
+}
+
+// Blanket impl: closures that return Result<LoopAction, String>
+impl<F> LineHandler for F
+where
+    F: Fn(&str) -> Result<LoopAction, String>,
+{
+    fn handle_line(&self, line: &str) -> Result<LoopAction, String> {
+        self(line)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -170,32 +194,113 @@ impl LineReader {
 
         let _guard = RawModeGuard::enter()?;
 
+        let mut reader = io::stdin();
+        self.read_line_from(&mut reader, &mut stdout, prompt)
+    }
+
+    /// Run an interactive REPL loop, delegating each line to `handler`.
+    ///
+    /// The loop ends when:
+    /// - The handler returns `Ok(LoopAction::Break)`
+    /// - EOF is reached (Ctrl-D)
+    /// - An I/O error occurs
+    pub fn run_loop<P, H>(&mut self, prompt_fn: P, handler: &H) -> io::Result<()>
+    where
+        P: Fn() -> String,
+        H: LineHandler,
+    {
+        loop {
+            let prompt = prompt_fn();
+            match self.read_line(&prompt)? {
+                None => break,
+                Some(line) => {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match handler.handle_line(trimmed) {
+                        Ok(LoopAction::Continue) => {}
+                        Ok(LoopAction::Break) => break,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Testable REPL loop that reads from `reader` and writes to `writer`.
+    #[cfg(test)]
+    fn run_loop_from<R: Read, W: Write, H: LineHandler>(
+        &mut self,
+        reader: &mut R,
+        writer: &mut W,
+        prompt: &str,
+        handler: &H,
+    ) -> io::Result<()> {
+        loop {
+            write!(writer, "{}", prompt)?;
+            writer.flush()?;
+            match self.read_line_from(reader, writer, prompt)? {
+                None => break,
+                Some(line) => {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match handler.handle_line(trimmed) {
+                        Ok(LoopAction::Continue) => {}
+                        Ok(LoopAction::Break) => break,
+                        Err(e) => {
+                            writeln!(writer, "Error: {}", e)?;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Core line-editing logic, reading bytes from `reader` and writing to `writer`.
+    /// Separated from `read_line` so it can be tested with synthetic input.
+    fn read_line_from<R: Read, W: Write>(
+        &mut self,
+        reader: &mut R,
+        writer: &mut W,
+        prompt: &str,
+    ) -> io::Result<Option<String>> {
         let mut line = String::new();
         let mut cursor_pos: usize = 0;
         let mut history_idx: usize = self.history.len();
         let mut saved_input = String::new();
 
         loop {
-            let b = read_byte()?;
+            let b = {
+                let mut buf = [0u8; 1];
+                reader.read_exact(&mut buf)?;
+                buf[0]
+            };
             match b {
                 // Ctrl-D on empty line => EOF
                 4 => {
                     if line.is_empty() {
-                        write!(stdout, "\r\n")?;
-                        stdout.flush()?;
+                        write!(writer, "\r\n")?;
+                        writer.flush()?;
                         return Ok(None);
                     }
                 }
                 // Ctrl-C => discard line
                 3 => {
-                    write!(stdout, "^C\r\n")?;
-                    stdout.flush()?;
+                    write!(writer, "^C\r\n")?;
+                    writer.flush()?;
                     return Ok(Some(String::new()));
                 }
                 // Enter (CR or LF)
                 b'\r' | b'\n' => {
-                    write!(stdout, "\r\n")?;
-                    stdout.flush()?;
+                    write!(writer, "\r\n")?;
+                    writer.flush()?;
                     self.push_history(&line);
                     return Ok(Some(line));
                 }
@@ -204,29 +309,29 @@ impl LineReader {
                     if cursor_pos > 0 {
                         cursor_pos -= 1;
                         line.remove(cursor_pos);
-                        Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                        Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                     }
                 }
                 // Ctrl-A => Home
                 1 => {
                     cursor_pos = 0;
-                    Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                 }
                 // Ctrl-E => End
                 5 => {
                     cursor_pos = line.len();
-                    Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                 }
                 // Ctrl-U => clear line
                 21 => {
                     line.clear();
                     cursor_pos = 0;
-                    Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                 }
                 // Ctrl-K => kill to end of line
                 11 => {
                     line.truncate(cursor_pos);
-                    Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                 }
                 // Ctrl-W => delete word backwards
                 23 => {
@@ -240,14 +345,22 @@ impl LineReader {
                         }
                         line.drain(new_pos..cursor_pos);
                         cursor_pos = new_pos;
-                        Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                        Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                     }
                 }
                 // ESC => start of escape sequence
                 27 => {
-                    let seq1 = read_byte()?;
+                    let seq1 = {
+                        let mut buf = [0u8; 1];
+                        reader.read_exact(&mut buf)?;
+                        buf[0]
+                    };
                     if seq1 == b'[' {
-                        let seq2 = read_byte()?;
+                        let seq2 = {
+                            let mut buf = [0u8; 1];
+                            reader.read_exact(&mut buf)?;
+                            buf[0]
+                        };
                         match seq2 {
                             // Up arrow
                             b'A' => {
@@ -258,7 +371,7 @@ impl LineReader {
                                     history_idx -= 1;
                                     line = self.history[history_idx].clone();
                                     cursor_pos = line.len();
-                                    Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                                 }
                             }
                             // Down arrow
@@ -271,41 +384,45 @@ impl LineReader {
                                         line = self.history[history_idx].clone();
                                     }
                                     cursor_pos = line.len();
-                                    Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                                 }
                             }
                             // Right arrow
                             b'C' => {
                                 if cursor_pos < line.len() {
                                     cursor_pos += 1;
-                                    write!(stdout, "\x1b[C")?;
-                                    stdout.flush()?;
+                                    write!(writer, "\x1b[C")?;
+                                    writer.flush()?;
                                 }
                             }
                             // Left arrow
                             b'D' => {
                                 if cursor_pos > 0 {
                                     cursor_pos -= 1;
-                                    write!(stdout, "\x1b[D")?;
-                                    stdout.flush()?;
+                                    write!(writer, "\x1b[D")?;
+                                    writer.flush()?;
                                 }
                             }
                             // Home
                             b'H' => {
                                 cursor_pos = 0;
-                                Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                                Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                             }
                             // End
                             b'F' => {
                                 cursor_pos = line.len();
-                                Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                                Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                             }
                             // Delete: ESC [ 3 ~
                             b'3' => {
-                                let seq3 = read_byte()?;
+                                let seq3 = {
+                                    let mut buf = [0u8; 1];
+                                    reader.read_exact(&mut buf)?;
+                                    buf[0]
+                                };
                                 if seq3 == b'~' && cursor_pos < line.len() {
                                     line.remove(cursor_pos);
-                                    Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                                 }
                             }
                             _ => {
@@ -320,10 +437,10 @@ impl LineReader {
                     line.insert(cursor_pos, b as char);
                     cursor_pos += 1;
                     if cursor_pos == line.len() {
-                        write!(stdout, "{}", b as char)?;
-                        stdout.flush()?;
+                        write!(writer, "{}", b as char)?;
+                        writer.flush()?;
                     } else {
-                        Self::redraw_line(&mut stdout, prompt, &line, cursor_pos)?;
+                        Self::redraw_line(writer, prompt, &line, cursor_pos)?;
                     }
                 }
                 _ => {
@@ -334,20 +451,324 @@ impl LineReader {
     }
 
     /// Redraw the current line (clear and rewrite).
-    fn redraw_line(
-        stdout: &mut io::Stdout,
+    fn redraw_line<W: Write>(
+        writer: &mut W,
         prompt: &str,
         line: &str,
         cursor_pos: usize,
     ) -> io::Result<()> {
-        // Move to beginning of line, clear it, rewrite prompt + line
-        write!(stdout, "\r\x1b[K{}{}", prompt, line)?;
-        // Move cursor to correct position
+        write!(writer, "\r\x1b[K{}{}", prompt, line)?;
         let total_len = prompt.len() + line.len();
         let target = prompt.len() + cursor_pos;
         if target < total_len {
-            write!(stdout, "\x1b[{}D", total_len - target)?;
+            write!(writer, "\x1b[{}D", total_len - target)?;
         }
-        stdout.flush()
+        writer.flush()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    /// Helper: build a byte sequence from a list of key inputs.
+    fn keys(parts: &[&[u8]]) -> Cursor<Vec<u8>> {
+        let mut buf = Vec::new();
+        for part in parts {
+            buf.extend_from_slice(part);
+        }
+        Cursor::new(buf)
+    }
+
+    const UP: &[u8] = b"\x1b[A";
+    const DOWN: &[u8] = b"\x1b[B";
+    const ENTER: &[u8] = b"\r";
+
+    #[test]
+    fn test_simple_input() {
+        let mut reader = LineReader::new(100);
+        let mut input = keys(&[b"hello", ENTER]);
+        let mut out = Vec::new();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("hello".to_string()));
+    }
+
+    #[test]
+    fn test_eof_on_empty() {
+        let mut reader = LineReader::new(100);
+        let mut input = Cursor::new(vec![4u8]); // Ctrl-D
+        let mut out = Vec::new();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_history_up_arrow() {
+        let mut reader = LineReader::new(100);
+        let mut out = Vec::new();
+
+        // First command
+        let mut input = keys(&[b"echo hello", ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+
+        // Second command: press Up then Enter (should recall "echo hello")
+        let mut input = keys(&[UP, ENTER]);
+        out.clear();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("echo hello".to_string()));
+    }
+
+    #[test]
+    fn test_history_up_down_arrow() {
+        let mut reader = LineReader::new(100);
+        let mut out = Vec::new();
+
+        // Enter two commands
+        let mut input = keys(&[b"first", ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let mut input = keys(&[b"second", ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+
+        // Up twice => "first", Down once => "second", Enter
+        let mut input = keys(&[UP, UP, DOWN, ENTER]);
+        out.clear();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("second".to_string()));
+    }
+
+    #[test]
+    fn test_history_down_restores_current_input() {
+        let mut reader = LineReader::new(100);
+        let mut out = Vec::new();
+
+        // Enter a command into history
+        let mut input = keys(&[b"old", ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+
+        // Type "new", press Up (recalls "old"), press Down (restores "new"), Enter
+        let mut input = keys(&[b"new", UP, DOWN, ENTER]);
+        out.clear();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("new".to_string()));
+    }
+
+    #[test]
+    fn test_history_dedup() {
+        let mut reader = LineReader::new(100);
+        let mut out = Vec::new();
+
+        // Enter same command twice
+        let mut input = keys(&[b"dup", ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        let mut input = keys(&[b"dup", ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+
+        // Up should recall "dup", another Up should NOT go further
+        // (only one entry in history)
+        let mut input = keys(&[UP, UP, ENTER]);
+        out.clear();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("dup".to_string()));
+    }
+
+    #[test]
+    fn test_history_max_size() {
+        let mut reader = LineReader::new(3);
+        let mut out = Vec::new();
+
+        for cmd in &["aaa", "bbb", "ccc", "ddd"] {
+            let mut input = keys(&[cmd.as_bytes(), ENTER]);
+            reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        }
+
+        // Up 3 times should stop at "bbb" (oldest "aaa" was evicted)
+        let mut input = keys(&[UP, UP, UP, ENTER]);
+        out.clear();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("bbb".to_string()));
+    }
+
+    #[test]
+    fn test_backspace() {
+        let mut reader = LineReader::new(100);
+        let mut input = keys(&[b"helloo", &[127], ENTER]);
+        let mut out = Vec::new();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("hello".to_string()));
+    }
+
+    #[test]
+    fn test_ctrl_u_clears_line() {
+        let mut reader = LineReader::new(100);
+        let mut input = keys(&[b"garbage", &[21], b"clean", ENTER]); // Ctrl-U = 21
+        let mut out = Vec::new();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("clean".to_string()));
+    }
+
+    #[test]
+    fn test_empty_line_not_in_history() {
+        let mut reader = LineReader::new(100);
+        let mut out = Vec::new();
+
+        // Enter a real command
+        let mut input = keys(&[b"real", ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+
+        // Enter an empty line
+        let mut input = keys(&[ENTER]);
+        reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+
+        // Up should still recall "real", not empty
+        let mut input = keys(&[UP, ENTER]);
+        out.clear();
+        let result = reader.read_line_from(&mut input, &mut out, "$ ").unwrap();
+        assert_eq!(result, Some("real".to_string()));
+    }
+
+    // ── LineHandler / run_loop tests ─────────────────────────────────────
+
+    #[test]
+    fn test_run_loop_with_handler() {
+        use std::sync::{Arc, Mutex};
+
+        let executed = Arc::new(Mutex::new(Vec::new()));
+        let exec_clone = Arc::clone(&executed);
+
+        let handler = move |line: &str| -> Result<LoopAction, String> {
+            exec_clone.lock().unwrap().push(line.to_string());
+            Ok(LoopAction::Continue)
+        };
+
+        let mut reader = LineReader::new(100);
+        // Type two commands then Ctrl-D
+        let mut input = keys(&[b"echo hello", ENTER, b"ls", ENTER, &[4]]);
+        let mut out = Vec::new();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+
+        let cmds = executed.lock().unwrap();
+        assert_eq!(cmds.len(), 2);
+        assert_eq!(cmds[0], "echo hello");
+        assert_eq!(cmds[1], "ls");
+    }
+
+    #[test]
+    fn test_run_loop_break_on_exit() {
+        let handler = |line: &str| -> Result<LoopAction, String> {
+            if line == "exit" {
+                Ok(LoopAction::Break)
+            } else {
+                Ok(LoopAction::Continue)
+            }
+        };
+
+        let mut reader = LineReader::new(100);
+        let mut input = keys(&[b"cmd1", ENTER, b"exit", ENTER, b"cmd2", ENTER]);
+        let mut out = Vec::new();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+        // Loop should have stopped after "exit"; "cmd2" is never processed.
+    }
+
+    #[test]
+    fn test_run_loop_error_continues() {
+        use std::sync::{Arc, Mutex};
+
+        let count = Arc::new(Mutex::new(0u32));
+        let count_clone = Arc::clone(&count);
+
+        let handler = move |line: &str| -> Result<LoopAction, String> {
+            *count_clone.lock().unwrap() += 1;
+            if line == "fail" {
+                Err("simulated error".to_string())
+            } else {
+                Ok(LoopAction::Continue)
+            }
+        };
+
+        let mut reader = LineReader::new(100);
+        let mut input = keys(&[b"ok", ENTER, b"fail", ENTER, b"ok2", ENTER, &[4]]);
+        let mut out = Vec::new();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+
+        // All three commands should have been processed (error doesn't stop loop)
+        assert_eq!(*count.lock().unwrap(), 3);
+    }
+
+    #[test]
+    fn test_run_loop_with_history_navigation() {
+        use std::sync::{Arc, Mutex};
+
+        let executed = Arc::new(Mutex::new(Vec::new()));
+        let exec_clone = Arc::clone(&executed);
+
+        let handler = move |line: &str| -> Result<LoopAction, String> {
+            exec_clone.lock().unwrap().push(line.to_string());
+            Ok(LoopAction::Continue)
+        };
+
+        let mut reader = LineReader::new(100);
+        // Enter "echo hello", then press Up+Enter to replay it
+        let mut input = keys(&[
+            b"echo hello", ENTER,
+            UP, ENTER,  // replay from history
+            &[4],       // EOF
+        ]);
+        let mut out = Vec::new();
+        reader.run_loop_from(&mut input, &mut out, "$ ", &handler).unwrap();
+
+        let cmds = executed.lock().unwrap();
+        assert_eq!(cmds.len(), 2);
+        assert_eq!(cmds[0], "echo hello");
+        assert_eq!(cmds[1], "echo hello"); // replayed from history
+    }
+
+    #[test]
+    fn test_run_loop_with_handle_parallel() {
+        use std::sync::{Arc, Mutex};
+        use crate::{CommandRegistry, handle_parallel, ArcVecWriter};
+
+        let registry = Arc::new(CommandRegistry::with_builtins());
+        let output = Arc::new(Mutex::new(Vec::<u8>::new()));
+
+        let reg = Arc::clone(&registry);
+        let out_ref = Arc::clone(&output);
+
+        let handler = move |line: &str| -> Result<LoopAction, String> {
+            if line == "exit" {
+                return Ok(LoopAction::Break);
+            }
+            let results = handle_parallel(
+                vec![line.to_string()],
+                Box::new(std::io::empty()),
+                Box::new(ArcVecWriter { inner: Arc::clone(&out_ref) }),
+                Arc::clone(&reg),
+            );
+            for res in results {
+                res?;
+            }
+            Ok(LoopAction::Continue)
+        };
+
+        let mut reader = LineReader::new(100);
+        // Run "echo hello", then Up+Enter to replay, then "exit"
+        let mut input = keys(&[
+            b"echo hello", ENTER,
+            UP, ENTER,  // replay "echo hello" via history
+            b"exit", ENTER,
+        ]);
+        let mut term_out = Vec::new();
+        reader.run_loop_from(&mut input, &mut term_out, "$ ", &handler).unwrap();
+
+        let buf = output.lock().unwrap();
+        let result = String::from_utf8_lossy(&buf);
+        let lines: Vec<&str> = result.trim().lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "hello");
+        assert_eq!(lines[1], "hello"); // replayed from history
     }
 }

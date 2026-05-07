@@ -3,7 +3,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 use colored::*;
-use wasi_shell::{CommandRegistry, LineReader, handle_parallel};
+use wasi_shell::{CommandRegistry, LineReader, LoopAction, handle_parallel};
 
 fn main() {
     let registry = CommandRegistry::with_builtins();
@@ -37,39 +37,33 @@ fn main() {
     println!("{}", "Welcome to WASI-Shell!".green().bold());
     println!("Type 'help' for available commands or 'exit' to quit.");
 
-    loop {
-        let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let prompt = format!("{} $ ", cwd.display().to_string().cyan());
-
-        let line = match reader.read_line(&prompt) {
-            Ok(Some(line)) => line,
-            Ok(None) => break,            // EOF (Ctrl-D)
-            Err(e) => {
-                eprintln!("{}", format!("Input error: {}", e).red());
-                break;
-            }
-        };
-
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if trimmed == "exit" {
+    let reg = Arc::clone(&arc_registry);
+    let handler = move |line: &str| -> Result<LoopAction, String> {
+        if line == "exit" {
             println!("Goodbye!");
-            break;
+            return Ok(LoopAction::Break);
         }
-
         let results = handle_parallel(
-            vec![trimmed.to_string()],
+            vec![line.to_string()],
             Box::new(io::empty()),
             Box::new(io::stdout()),
-            Arc::clone(&arc_registry),
+            Arc::clone(&reg),
         );
-
         for res in results {
             if let Err(e) = res {
                 eprintln!("{}", e.red());
             }
         }
+        Ok(LoopAction::Continue)
+    };
+
+    if let Err(e) = reader.run_loop(
+        || {
+            let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            format!("{} $ ", cwd.display().to_string().cyan())
+        },
+        &handler,
+    ) {
+        eprintln!("{}", format!("Input error: {}", e).red());
     }
 }
