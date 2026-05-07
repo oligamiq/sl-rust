@@ -791,6 +791,7 @@ name = "wasi-shell"
 version = "1.0.8"
 dependencies = [
  "colored",
+ "libc",
  "shlex",
  "sl-rust",
  "tempfile",

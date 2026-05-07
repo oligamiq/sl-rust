@@ -1,9 +1,9 @@
 use std::env;
-use std::io::{self, Write};
+use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 use colored::*;
-use wasi_shell::{CommandRegistry, handle_command_line, handle_parallel};
+use wasi_shell::{CommandRegistry, LineReader, handle_parallel};
 
 fn main() {
     let registry = CommandRegistry::with_builtins();
@@ -31,31 +31,45 @@ fn main() {
         return;
     }
 
-    let mut input = String::new();
-    let stdin = io::stdin();
-    
+    let arc_registry = Arc::new(registry);
+    let mut reader = LineReader::new(1000);
+
     println!("{}", "Welcome to WASI-Shell!".green().bold());
     println!("Type 'help' for available commands or 'exit' to quit.");
 
     loop {
         let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        print!("{} $ ", cwd.display().to_string().cyan());
-        io::stdout().flush().unwrap();
+        let prompt = format!("{} $ ", cwd.display().to_string().cyan());
 
-        input.clear();
-        let n = stdin.read_line(&mut input).unwrap_or(0);
-        if n == 0 || input.trim() == "exit" {
-            if n != 0 { println!("Goodbye!"); }
+        let line = match reader.read_line(&prompt) {
+            Ok(Some(line)) => line,
+            Ok(None) => break,            // EOF (Ctrl-D)
+            Err(e) => {
+                eprintln!("{}", format!("Input error: {}", e).red());
+                break;
+            }
+        };
+
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed == "exit" {
+            println!("Goodbye!");
             break;
         }
 
-        let line = input.trim();
-        if line.is_empty() {
-            continue;
-        }
+        let results = handle_parallel(
+            vec![trimmed.to_string()],
+            Box::new(io::empty()),
+            Box::new(io::stdout()),
+            Arc::clone(&arc_registry),
+        );
 
-        if let Err(e) = handle_command_line(line, &registry) {
-            eprintln!("{}", e.red());
+        for res in results {
+            if let Err(e) = res {
+                eprintln!("{}", e.red());
+            }
         }
     }
 }

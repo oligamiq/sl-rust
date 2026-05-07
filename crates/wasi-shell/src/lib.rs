@@ -6,6 +6,9 @@ use std::sync::{Arc, Mutex};
 use colored::*;
 pub use wasibox_core::IoContext;
 
+mod readline;
+pub use readline::LineReader;
+
 // ---------------------------------------------------------------------------
 // CommandRegistry
 // ---------------------------------------------------------------------------
