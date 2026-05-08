@@ -20,6 +20,15 @@ where
     I: IntoIterator<Item = T>,
     T: AsRef<str>,
 {
+    run_with_token(args, None)
+}
+
+/// Runs the SL animation with a cancellation token.
+pub fn run_with_token<I, T>(args: I, cancel_token: Option<wasibox_core::CancellationToken>) -> io::Result<()>
+where
+    I: IntoIterator<Item = T>,
+    T: AsRef<str>,
+{
     let config = Config::from_args(args);
     let terminal = Terminal::new()?;
 
@@ -30,6 +39,11 @@ where
     let mut paused = false;
 
     for x in (-(max_length + 10)..=(width + 10)).rev() {
+        if let Some(token) = &cancel_token {
+            if token.is_cancelled() {
+                break;
+            }
+        }
         // Unified input handler
         match terminal.check_input()? {
             InputAction::Quit => break,
@@ -44,6 +58,11 @@ where
 
         // If paused, wait for resume signal without advancing animation
         while paused {
+            if let Some(token) = &cancel_token {
+                if token.is_cancelled() {
+                    return Ok(());
+                }
+            }
             thread::sleep(Duration::from_millis(100));
             match terminal.check_input()? {
                 InputAction::Pause => {

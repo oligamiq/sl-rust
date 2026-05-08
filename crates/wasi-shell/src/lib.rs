@@ -130,8 +130,8 @@ impl CommandRegistry {
         });
 
         #[cfg(feature = "sl")]
-        reg.register("sl", |args, _ctx| {
-            let _ = sl::run(args.iter().cloned());
+        reg.register("sl", |args, ctx| {
+            let _ = sl::run_with_token(args.iter().cloned(), Some(ctx.cancel_token.clone()));
             Ok(())
         });
 
@@ -502,8 +502,89 @@ fn create_pipe(token: wasibox_core::CancellationToken) -> (PipeReader, PipeWrite
 }
 
 // ---------------------------------------------------------------------------
-// Utility types
+// Stdin Multiplexer (for signals on platforms without them)
 // ---------------------------------------------------------------------------
+
+use std::sync::mpsc::{self, Sender, Receiver};
+
+/// A shared stdin reader that can be monitored by a background thread
+/// to intercept control characters (like Ctrl-C) on platforms without signals.
+pub struct StdinMultiplexer {
+    tx_subscribers: Mutex<Vec<Sender<Vec<u8>>>>,
+    cancel_token: wasibox_core::CancellationToken,
+}
+
+impl StdinMultiplexer {
+    pub fn new(cancel_token: wasibox_core::CancellationToken) -> Arc<Self> {
+        let mux = Arc::new(Self {
+            tx_subscribers: Mutex::new(Vec::new()),
+            cancel_token,
+        });
+
+        let mux_clone = Arc::clone(&mux);
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 1024];
+            let mut stdin = io::stdin();
+            loop {
+                match stdin.read(&mut buf) {
+                    Ok(0) => break, // EOF
+                    Ok(n) => {
+                        let data = &buf[..n];
+                        // Check for Ctrl-C (byte 3)
+                        for &b in data {
+                            if b == 3 {
+                                mux_clone.cancel_token.cancel();
+                            }
+                        }
+                        // Broadcast to all active subscribers
+                        let mut subs = mux_clone.tx_subscribers.lock().unwrap();
+                        subs.retain(|tx| {
+                            tx.send(data.to_vec()).is_ok()
+                        });
+                    }
+                    Err(_) => {
+                        // On some platforms, read error might be temporary, 
+                        // but for stdin it usually means we should stop.
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                }
+            }
+        });
+
+        mux
+    }
+
+    pub fn subscribe(&self) -> MultiplexedReader {
+        let (tx, rx) = mpsc::channel();
+        self.tx_subscribers.lock().unwrap().push(tx);
+        MultiplexedReader { rx, buffer: Vec::new(), pos: 0 }
+    }
+}
+
+pub struct MultiplexedReader {
+    rx: Receiver<Vec<u8>>,
+    buffer: Vec<u8>,
+    pos: usize,
+}
+
+impl Read for MultiplexedReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if self.pos >= self.buffer.len() {
+            match self.rx.recv() {
+                Ok(data) => {
+                    self.buffer = data;
+                    self.pos = 0;
+                }
+                Err(_) => return Ok(0),
+            }
+        }
+        let available = self.buffer.len() - self.pos;
+        let to_copy = std::cmp::min(available, buf.len());
+        buf[..to_copy].copy_from_slice(&self.buffer[self.pos..self.pos + to_copy]);
+        self.pos += to_copy;
+        Ok(to_copy)
+    }
+}
 
 /// A thread-safe writer backed by a shared `Vec<u8>`. Useful for tests.
 pub struct ArcVecWriter {

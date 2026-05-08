@@ -13,6 +13,10 @@ wasibox-core = { workspace = true, default-features = true }
 sl-rust = { workspace = true, optional = true }
 shlex = { workspace = true }
 colored = { workspace = true }
+wasi = "0.11"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+ctrlc = "3.5.2"
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

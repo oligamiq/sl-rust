@@ -24,7 +24,6 @@ mod sys {
         cursor::{Hide, Show},
         event::{poll, read, Event},
     };
-    #[cfg(feature = "debug")]
     use crossterm::event::KeyCode;
 
     pub fn init() -> io::Result<(u16, u16)> {
@@ -52,12 +51,10 @@ mod sys {
     }
 
     pub fn check_input() -> io::Result<InputAction> {
-        #[allow(unused_mut)]
         let mut action = InputAction::None;
         while poll(Duration::from_millis(0))? {
             if let Event::Key(key_event) = read()? {
                 if key_event.kind == crossterm::event::KeyEventKind::Press {
-                    #[cfg(feature = "debug")]
                     match key_event.code {
                         KeyCode::Char(' ') | KeyCode::Char('p') | KeyCode::Char('P') => {
                             action = InputAction::Pause;

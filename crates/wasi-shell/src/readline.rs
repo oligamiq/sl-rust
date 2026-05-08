@@ -17,7 +17,7 @@ impl RawModeGuard {
             return Err(io::Error::last_os_error());
         }
         let mut raw = original;
-        raw.c_lflag &= !(libc::ICANON | libc::ECHO);
+        raw.c_lflag &= !(libc::ICANON | libc::ECHO | libc::ISIG);
         raw.c_cc[libc::VMIN] = 1;
         raw.c_cc[libc::VTIME] = 0;
         if unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &raw) } != 0 {
@@ -48,6 +48,7 @@ mod win32 {
     }
 
     pub const STD_INPUT_HANDLE: u32 = 0xFFFF_FFF6; // (DWORD)-10
+    pub const ENABLE_PROCESSED_INPUT: u32 = 0x0001;
     pub const ENABLE_LINE_INPUT: u32 = 0x0002;
     pub const ENABLE_ECHO_INPUT: u32 = 0x0004;
     pub const ENABLE_VIRTUAL_TERMINAL_INPUT: u32 = 0x0200;
@@ -71,7 +72,7 @@ impl RawModeGuard {
             return Err(io::Error::last_os_error());
         }
         let new_mode = (original_mode
-            & !(win32::ENABLE_LINE_INPUT | win32::ENABLE_ECHO_INPUT))
+            & !(win32::ENABLE_LINE_INPUT | win32::ENABLE_ECHO_INPUT | win32::ENABLE_PROCESSED_INPUT))
             | win32::ENABLE_VIRTUAL_TERMINAL_INPUT;
         if unsafe { win32::SetConsoleMode(handle, new_mode) } == 0 {
             return Err(io::Error::last_os_error());
@@ -198,6 +199,17 @@ impl LineReader {
         self.read_line_from(&mut reader, &mut stdout, prompt, cancel_token)
     }
 
+    /// Read a line interactively using a provided reader.
+    pub fn read_line_with_stdin(&mut self, prompt: &str, cancel_token: Option<wasibox_core::CancellationToken>, mut reader: Box<dyn Read>) -> io::Result<Option<String>> {
+        let mut stdout = io::stdout();
+        write!(stdout, "{}", prompt)?;
+        stdout.flush()?;
+
+        let _guard = RawModeGuard::enter()?;
+
+        self.read_line_from(&mut reader, &mut stdout, prompt, cancel_token)
+    }
+
     /// Run an interactive REPL loop, delegating each line to `handler`.
     ///
     /// The loop ends when:
@@ -212,6 +224,35 @@ impl LineReader {
         loop {
             let prompt = prompt_fn();
             match self.read_line(&prompt, Some(cancel_token.clone()))? {
+                None => break,
+                Some(line) => {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match handler.handle_line(trimmed) {
+                        Ok(LoopAction::Continue) => {}
+                        Ok(LoopAction::Break) => break,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Run an interactive REPL loop using a provided reader.
+    pub fn run_loop_with_stdin<P, H>(&mut self, prompt_fn: P, handler: &H, cancel_token: wasibox_core::CancellationToken, mut reader: Box<dyn Read>) -> io::Result<()>
+    where
+        P: Fn() -> String,
+        H: LineHandler,
+    {
+        loop {
+            let prompt = prompt_fn();
+            let _guard = RawModeGuard::enter()?;
+            match self.read_line_from(&mut reader, &mut io::stdout(), &prompt, Some(cancel_token.clone()))? {
                 None => break,
                 Some(line) => {
                     let trimmed = line.trim();

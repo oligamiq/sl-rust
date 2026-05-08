@@ -16,6 +16,9 @@ categories = ["command-line-utilities"]
 name = "sl"
 path = "src/lib.rs"
 
+[dependencies]
+wasibox-core = { workspace = true, default-features = false }
+
 [target.'cfg(not(target_os = "wasi"))'.dependencies]
 crossterm = "0.29"
 
