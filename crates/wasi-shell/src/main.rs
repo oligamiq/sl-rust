@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use colored::*;
-use wasi_shell::{CommandRegistry, LineReader, LoopAction, handle_parallel};
+use wasi_shell::{CommandRegistry, LineEditor, LoopAction, handle_parallel};
 
 fn main() {
     let registry = CommandRegistry::with_builtins();
@@ -64,7 +64,7 @@ fn main() {
     }
 
     let arc_registry = Arc::new(registry);
-    let mut reader = LineReader::new(1000);
+    let mut reader = LineEditor::new(1000);
 
     println!("{}", "Welcome to WASI-Shell!".green().bold());
     println!("Type 'help' for available commands or 'exit' to quit.");
