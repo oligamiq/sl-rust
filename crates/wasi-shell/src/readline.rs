@@ -164,6 +164,7 @@ pub enum KeyEvent {
     CtrlW,
     CtrlD,
     CtrlC,
+    Esc,
 }
 
 pub trait KeyEventHandler {
@@ -249,6 +250,7 @@ impl LineBuffer {
                     self.cursor_pos = new_pos;
                 }
             }
+            KeyEvent::Esc => {}
             _ => {}
         }
     }
@@ -273,7 +275,7 @@ pub struct InMemoryHistory {
 }
 
 impl InMemoryHistory {
-    pub fn new(max_len: usize) -> Self {
+    pub const fn new(max_len: usize) -> Self {
         Self {
             entries: Vec::new(),
             max_len,
@@ -325,12 +327,13 @@ pub struct LineEditor<H: History = InMemoryHistory> {
     history: H,
     history_idx: usize,
     saved_input: String,
+    esc_buf: smallvec::SmallVec<[u8; 4]>,
 }
 
 impl LineEditor<InMemoryHistory> {
     /// Create a new `LineEditor` with the given maximum history size.
-    pub fn new(max_history: usize) -> Self {
-        Self::with_history(InMemoryHistory::new(max_history))
+    pub const fn new(max_history: usize) -> Self {
+        Self::with_history_and_len(InMemoryHistory::new(max_history), 0)
     }
 }
 
@@ -342,6 +345,17 @@ impl<H: History> LineEditor<H> {
             history,
             history_idx,
             saved_input: String::new(),
+            esc_buf: smallvec::SmallVec::new_const(),
+        }
+    }
+
+    pub const fn with_history_and_len(history: H, len: usize) -> Self {
+        Self {
+            line_buffer: LineBuffer::new(),
+            history,
+            history_idx: len,
+            saved_input: String::new(),
+            esc_buf: smallvec::SmallVec::new_const(),
         }
     }
 
@@ -359,6 +373,7 @@ impl<H: History> LineEditor<H> {
         self.line_buffer.cursor_pos = 0;
         self.history_idx = self.history.len();
         self.saved_input.clear();
+        self.esc_buf.clear();
     }
 
     pub fn input_char(&mut self, code: u32) -> Option<String> {
@@ -366,6 +381,46 @@ impl<H: History> LineEditor<H> {
     }
 
     pub fn input_char_with_handler<K: KeyEventHandler>(&mut self, code: u32, handler: &mut K) -> Option<String> {
+        // 1. Handle escape sequence state machine
+        if code == 27 {
+            self.esc_buf.clear();
+            self.esc_buf.push(27);
+            return None;
+        }
+
+        if !self.esc_buf.is_empty() {
+            self.esc_buf.push(code as u8);
+            let seq = self.esc_buf.as_slice();
+
+            let key = match seq {
+                [27, b'[', b'A'] => Some(KeyEvent::Up),
+                [27, b'[', b'B'] => Some(KeyEvent::Down),
+                [27, b'[', b'C'] => Some(KeyEvent::Right),
+                [27, b'[', b'D'] => Some(KeyEvent::Left),
+                [27, b'[', b'H'] => Some(KeyEvent::Home),
+                [27, b'[', b'F'] => Some(KeyEvent::End),
+                [27, b'[', b'3', b'~'] => Some(KeyEvent::Delete),
+                _ => {
+                    // Check if it's still potentially a valid prefix
+                    if seq.len() >= 4 || (seq.len() == 2 && seq[1] != b'[') {
+                        // Invalid or unsupported sequence
+                        self.esc_buf.clear();
+                        None
+                    } else {
+                        // Keep waiting for more bytes
+                        return None;
+                    }
+                }
+            };
+
+            if let Some(k) = key {
+                self.esc_buf.clear();
+                return self.handle_key_event(k, handler);
+            }
+            // If the sequence was invalid, we fall through to process the current 'code'
+        }
+
+        // 2. Map single code to KeyEvent
         let key = match code {
             // Control characters
             1 => KeyEvent::CtrlA,
@@ -377,7 +432,7 @@ impl<H: History> LineEditor<H> {
             13 | 10 => KeyEvent::Enter,
             21 => KeyEvent::CtrlU,
             23 => KeyEvent::CtrlW,
-            27 => return None, // ESC should be handled by the caller for multi-byte sequences
+            27 => KeyEvent::Esc,
 
             // Custom codes for special keys (defined by the caller/LineEditor)
             1001 => KeyEvent::Up,
@@ -393,6 +448,10 @@ impl<H: History> LineEditor<H> {
             _ => return None,
         };
 
+        self.handle_key_event(key, handler)
+    }
+
+    fn handle_key_event<K: KeyEventHandler>(&mut self, key: KeyEvent, handler: &mut K) -> Option<String> {
         handler.on_key_event(key);
 
         if key == KeyEvent::Enter {
@@ -800,6 +859,38 @@ mod tests {
         out.clear();
         let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
         assert_eq!(result, Some("second".to_string()));
+    }
+
+    #[test]
+    fn test_input_char_sequence() {
+        let mut editor = LineEditor::new(10);
+        editor.input_char('f' as u32);
+        editor.input_char('i' as u32);
+        editor.input_char('r' as u32);
+        editor.input_char('s' as u32);
+        editor.input_char('t' as u32);
+        editor.input_char(13); // Enter saves "first"
+
+        editor.input_char('s' as u32);
+        editor.input_char('e' as u32);
+        editor.input_char('c' as u32);
+        editor.input_char('o' as u32);
+        editor.input_char('n' as u32);
+        editor.input_char('d' as u32);
+        editor.input_char(13); // Enter saves "second"
+
+        // Send Down arrow as [27, 91, 66]
+        // History: ["first", "second"], idx starts at 2
+        // Press Up twice to get to "first"
+        editor.input_char(1001); // Up -> "second"
+        editor.input_char(1001); // Up -> "first"
+        assert_eq!(editor.buffer(), "first");
+
+        // Now Down via sequence
+        editor.input_char(27); // ESC
+        editor.input_char(91); // '['
+        editor.input_char(66); // 'B' -> Down
+        assert_eq!(editor.buffer(), "second");
     }
 
     #[test]

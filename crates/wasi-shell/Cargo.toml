@@ -14,6 +14,7 @@ sl-rust = { workspace = true, optional = true }
 shlex = { workspace = true }
 colored = { workspace = true }
 wasi = "0.11"
+smallvec = { version = "1.15", features = ["const_generics", "const_new"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 ctrlc = "3.5.2"
@@ -25,7 +26,40 @@ libc = { workspace = true }
 default = ["sl", "coreutils"]
 sl = ["dep:sl-rust"]
 # coreutils includes most wasibox-core utilities as built-ins
-coreutils = ["arch", "cat", "cp", "dir", "echo", "grep", "head", "ls", "mkdir", "mv", "pwd", "rm", "rmdir", "seq", "sleep", "tail", "tee", "touch", "tree", "uname", "wc", "whoami", "yes", "basename", "dirname", "true", "false", "env", "clear", "link", "ln", "unlink"]
+coreutils = [
+    "arch",
+    "cat",
+    "cp",
+    "dir",
+    "echo",
+    "grep",
+    "head",
+    "ls",
+    "mkdir",
+    "mv",
+    "pwd",
+    "rm",
+    "rmdir",
+    "seq",
+    "sleep",
+    "tail",
+    "tee",
+    "touch",
+    "tree",
+    "uname",
+    "wc",
+    "whoami",
+    "yes",
+    "basename",
+    "dirname",
+    "true",
+    "false",
+    "env",
+    "clear",
+    "link",
+    "ln",
+    "unlink",
+]
 
 arch = []
 cat = []
