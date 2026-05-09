@@ -1011,5 +1011,43 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Interrupted");
     }
+
+    #[test]
+    fn test_seq_redirection_parallel_cancel() {
+        let dir = get_temp_dir();
+        let file_path = dir.path().join("i.txt");
+        let cmd = format!("seq > \"{}\"", file_path.display());
+        
+        let registry = Arc::new(builtins());
+        let cancel_token = wasibox_core::CancellationToken::new();
+        let cancel_clone = cancel_token.clone();
+
+        let thread = std::thread::spawn(move || {
+            super::handle_parallel(
+                vec![cmd],
+                Box::new(std::io::empty()),
+                Box::new(std::io::sink()),
+                registry,
+                cancel_clone,
+            )
+        });
+
+        // Give it some time to start writing
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        cancel_token.cancel();
+
+        let results = thread.join().unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_err());
+        assert_eq!(results[0].as_ref().unwrap_err(), "Interrupted");
+        
+        // Verify that the file was created and contains some data
+        assert!(file_path.exists());
+        let content = std::fs::read_to_string(&file_path).unwrap();
+        assert!(!content.is_empty(), "File should not be empty");
+        
+        // Ensure it stopped
+        println!("Final sequence number written: {}", content.lines().last().unwrap_or("none"));
+    }
 }
 
