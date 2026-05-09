@@ -7,7 +7,7 @@ use colored::*;
 pub use wasibox_core::IoContext;
 
 mod readline;
-pub use readline::{LineReader, LineHandler, LoopAction};
+pub use readline::*;
 
 // ---------------------------------------------------------------------------
 // CommandRegistry
@@ -67,7 +67,7 @@ impl CommandRegistry {
 
         reg.register("help", |_args, ctx| {
             writeln!(ctx.stdout, "{}", "Available Commands:".yellow().bold()).map_err(|e| e.to_string())?;
-            
+
             let mut shell_builtins = vec!["cd", "help", "exit"];
             #[cfg(feature = "clear")] shell_builtins.push("clear");
             shell_builtins.sort();
@@ -75,7 +75,7 @@ impl CommandRegistry {
 
             #[cfg(feature = "sl")]
             writeln!(ctx.stdout, "  Animations: sl").map_err(|e| e.to_string())?;
-            
+
             let mut utils = Vec::new();
             #[cfg(feature = "arch")] utils.push("arch");
             #[cfg(feature = "basename")] utils.push("basename");
@@ -108,7 +108,7 @@ impl CommandRegistry {
             #[cfg(feature = "wc")] utils.push("wc");
             #[cfg(feature = "whoami")] utils.push("whoami");
             #[cfg(feature = "yes")] utils.push("yes");
-            
+
             if !utils.is_empty() {
                 utils.sort();
                 writeln!(ctx.stdout, "  Core Utilities: {}", utils.join(", ")).map_err(|e| e.to_string())?;
@@ -313,7 +313,7 @@ pub fn handle_pipeline(
                 let wrapped_stdin = Box::new(CancelReader { inner: stdin, token: cancel_clone.clone() });
                 let wrapped_stdout = Box::new(CancelWriter { inner: stdout, token: cancel_clone.clone() });
                 let wrapped_stderr = Box::new(CancelWriter { inner: Box::new(io::stderr()), token: cancel_clone.clone() });
-                
+
                 let mut ctx = IoContext::with_cancel(wrapped_stdin, wrapped_stdout, wrapped_stderr, cancel_clone.clone());
                 let res = registry.execute(&tokens, &mut ctx);
                 if cancel_clone.is_cancelled() {
@@ -369,7 +369,7 @@ pub fn handle_parallel(
         let registry = Arc::clone(&registry);
         let mut stdin_for_thread: Option<Box<dyn Read + Send>> = Some(stdin_opt.take().unwrap_or_else(|| Box::new(io::empty())));
         let mut stdout_for_thread: Option<Box<dyn Write + Send>> = Some(stdout_opt.take().unwrap_or_else(|| Box::new(io::stdout())));
-        
+
         let cancel_clone = cancel_token.clone();
         let handle = std::thread::spawn(move || {
             let commands: Vec<&str> = line.split("&&").collect();
@@ -543,7 +543,7 @@ impl StdinMultiplexer {
                         });
                     }
                     Err(_) => {
-                        // On some platforms, read error might be temporary, 
+                        // On some platforms, read error might be temporary,
                         // but for stdin it usually means we should stop.
                         std::thread::sleep(std::time::Duration::from_millis(100));
                     }
@@ -964,7 +964,7 @@ mod tests {
         let registry = Arc::new(builtins());
         let cancel_token = wasibox_core::CancellationToken::new();
         let cancel_clone = cancel_token.clone();
-        
+
         let thread = std::thread::spawn(move || {
             println!("THREAD SPAWNED");
             super::handle_parallel(
@@ -975,11 +975,11 @@ mod tests {
                 cancel_clone,
             )
         });
-        
+
         std::thread::sleep(std::time::Duration::from_millis(10));
         println!("CANCELLING TOKEN");
         cancel_token.cancel();
-        
+
         println!("JOINING THREAD");
         let results = thread.join().unwrap();
         println!("RESULTS: {:?}", results);
@@ -993,7 +993,7 @@ mod tests {
         let registry = builtins();
         let cancel_token = wasibox_core::CancellationToken::new();
         let cancel_clone = cancel_token.clone();
-        
+
         let thread = std::thread::spawn(move || {
             super::handle_pipeline(
                 "yes | grep y",
@@ -1003,10 +1003,10 @@ mod tests {
                 cancel_clone,
             )
         });
-        
+
         std::thread::sleep(std::time::Duration::from_millis(10));
         cancel_token.cancel();
-        
+
         let result = thread.join().unwrap();
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Interrupted");

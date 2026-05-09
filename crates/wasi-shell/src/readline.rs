@@ -176,7 +176,7 @@ pub struct LineEditor {
 
 impl LineEditor {
     /// Create a new `LineEditor` initialized for a new line.
-    pub fn new(history_len: usize) -> Self {
+    pub const fn new(history_len: usize) -> Self {
         Self {
             buffer: String::new(),
             cursor_pos: 0,
