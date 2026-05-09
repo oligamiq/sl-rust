@@ -175,4 +175,23 @@ mod tests {
         token.reset();
         assert!(!token.is_cancelled());
     }
+
+    #[test]
+    fn test_seq_cancellation() {
+        let mut ctx = crate::IoContext::default();
+        let token = ctx.cancel_token.clone();
+        
+        // Use a thread to cancel the token after a short delay
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            token.cancel();
+        });
+
+        // Run an infinite seq command
+        let args = vec!["seq"];
+        let result = crate::utils::seq::execute_with_context(args, &mut ctx);
+        
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Interrupted");
+    }
 }

@@ -79,6 +79,10 @@ where
 
     let mut current = first;
     loop {
+        if ctx.cancel_token.is_cancelled() {
+            return Err("Interrupted".to_string());
+        }
+
         if let Some(last_val) = last {
             if increment > 0.0 && current > last_val {
                 break;
