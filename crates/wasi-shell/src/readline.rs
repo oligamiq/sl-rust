@@ -189,7 +189,9 @@ impl LineEditor {
     ///
     /// The `code` can be a printable ASCII character or a special value representing
     /// a control key or escape sequence.
-    pub fn input_char(&mut self, code: u32, history: &[String]) {
+    ///
+    /// Returns `Some(buffer)` if Enter was pressed, indicating the line is complete.
+    pub fn input_char(&mut self, code: u32, history: &[String]) -> Option<String> {
         let key = match code {
             // Control characters
             1 => KeyEvent::CtrlA,
@@ -201,7 +203,7 @@ impl LineEditor {
             13 | 10 => KeyEvent::Enter,
             21 => KeyEvent::CtrlU,
             23 => KeyEvent::CtrlW,
-            27 => return, // ESC should be handled by the caller for multi-byte sequences
+            27 => return None, // ESC should be handled by the caller for multi-byte sequences
 
             // Custom codes for special keys (defined by the caller/LineReader)
             1001 => KeyEvent::Up,
@@ -214,10 +216,15 @@ impl LineEditor {
 
             // Printable characters
             c if c >= 0x20 => KeyEvent::Char(char::from_u32(c).unwrap_or(' ')),
-            _ => return,
+            _ => return None,
         };
 
-        self.apply_key(key, history);
+        if key == KeyEvent::Enter {
+            Some(self.buffer.clone())
+        } else {
+            self.apply_key(key, history);
+            None
+        }
     }
 
     fn apply_key(&mut self, key: KeyEvent, history: &[String]) {
@@ -541,17 +548,15 @@ impl LineReader {
                 other => other as u32,
             };
 
-            if code == 13 || code == 10 { // Enter
-                write!(writer, "\r\n")?;
-                writer.flush()?;
-                self.push_history(&editor.buffer);
-                return Ok(Some(editor.buffer));
-            }
-
             let old_pos = editor.cursor_pos;
             let old_len = editor.buffer.len();
 
-            editor.input_char(code, &self.history);
+            if let Some(completed_line) = editor.input_char(code, &self.history) {
+                write!(writer, "\r\n")?;
+                writer.flush()?;
+                self.push_history(&completed_line);
+                return Ok(Some(completed_line));
+            }
 
             // Redraw optimization
             if code >= 0x20 && code < 1000 && old_pos == old_len && editor.cursor_pos == editor.buffer.len() {
@@ -613,21 +618,24 @@ mod tests {
         let mut editor = LineEditor::new(0);
         let history = vec![];
 
-        editor.input_char('a' as u32, &history);
-        editor.input_char('b' as u32, &history);
+        assert!(editor.input_char('a' as u32, &history).is_none());
+        assert!(editor.input_char('b' as u32, &history).is_none());
         assert_eq!(editor.buffer, "ab");
         assert_eq!(editor.cursor_pos, 2);
 
-        editor.input_char(1004, &history); // Left
+        assert!(editor.input_char(1004, &history).is_none()); // Left
         assert_eq!(editor.cursor_pos, 1);
 
-        editor.input_char('c' as u32, &history);
+        assert!(editor.input_char('c' as u32, &history).is_none());
         assert_eq!(editor.buffer, "acb");
         assert_eq!(editor.cursor_pos, 2);
 
-        editor.input_char(127, &history); // Backspace
+        assert!(editor.input_char(127, &history).is_none()); // Backspace
         assert_eq!(editor.buffer, "ab");
         assert_eq!(editor.cursor_pos, 1);
+
+        let result = editor.input_char(13, &history); // Enter
+        assert_eq!(result, Some("ab".to_string()));
     }
 
     #[test]
