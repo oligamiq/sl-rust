@@ -142,6 +142,164 @@ where
 }
 
 // ---------------------------------------------------------------------------
+// KeyEvent and LineEditor
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyEvent {
+    Char(char),
+    Enter,
+    Backspace,
+    Delete,
+    Up,
+    Down,
+    Left,
+    Right,
+    Home,
+    End,
+    CtrlA,
+    CtrlE,
+    CtrlU,
+    CtrlK,
+    CtrlW,
+    CtrlD,
+    CtrlC,
+}
+
+/// A stateful editor for a single line of text.
+pub struct LineEditor {
+    pub buffer: String,
+    pub cursor_pos: usize,
+    history_idx: usize,
+    saved_input: String,
+}
+
+impl LineEditor {
+    /// Create a new `LineEditor` initialized for a new line.
+    pub fn new(history_len: usize) -> Self {
+        Self {
+            buffer: String::new(),
+            cursor_pos: 0,
+            history_idx: history_len,
+            saved_input: String::new(),
+        }
+    }
+
+    /// Process a raw key code, updating the internal state.
+    ///
+    /// The `code` can be a printable ASCII character or a special value representing
+    /// a control key or escape sequence.
+    pub fn input_char(&mut self, code: u32, history: &[String]) {
+        let key = match code {
+            // Control characters
+            1 => KeyEvent::CtrlA,
+            3 => KeyEvent::CtrlC,
+            4 => KeyEvent::CtrlD,
+            5 => KeyEvent::CtrlE,
+            8 | 127 => KeyEvent::Backspace,
+            11 => KeyEvent::CtrlK,
+            13 | 10 => KeyEvent::Enter,
+            21 => KeyEvent::CtrlU,
+            23 => KeyEvent::CtrlW,
+            27 => return, // ESC should be handled by the caller for multi-byte sequences
+
+            // Custom codes for special keys (defined by the caller/LineReader)
+            1001 => KeyEvent::Up,
+            1002 => KeyEvent::Down,
+            1003 => KeyEvent::Right,
+            1004 => KeyEvent::Left,
+            1005 => KeyEvent::Home,
+            1006 => KeyEvent::End,
+            1007 => KeyEvent::Delete,
+
+            // Printable characters
+            c if c >= 0x20 => KeyEvent::Char(char::from_u32(c).unwrap_or(' ')),
+            _ => return,
+        };
+
+        self.apply_key(key, history);
+    }
+
+    fn apply_key(&mut self, key: KeyEvent, history: &[String]) {
+        match key {
+            KeyEvent::Char(ch) => {
+                self.buffer.insert(self.cursor_pos, ch);
+                self.cursor_pos += 1;
+            }
+            KeyEvent::Backspace => {
+                if self.cursor_pos > 0 {
+                    self.cursor_pos -= 1;
+                    self.buffer.remove(self.cursor_pos);
+                }
+            }
+            KeyEvent::Delete => {
+                if self.cursor_pos < self.buffer.len() {
+                    self.buffer.remove(self.cursor_pos);
+                }
+            }
+            KeyEvent::Left => {
+                if self.cursor_pos > 0 {
+                    self.cursor_pos -= 1;
+                }
+            }
+            KeyEvent::Right => {
+                if self.cursor_pos < self.buffer.len() {
+                    self.cursor_pos += 1;
+                }
+            }
+            KeyEvent::Home | KeyEvent::CtrlA => {
+                self.cursor_pos = 0;
+            }
+            KeyEvent::End | KeyEvent::CtrlE => {
+                self.cursor_pos = self.buffer.len();
+            }
+            KeyEvent::Up => {
+                if !history.is_empty() && self.history_idx > 0 {
+                    if self.history_idx == history.len() {
+                        self.saved_input = self.buffer.clone();
+                    }
+                    self.history_idx -= 1;
+                    self.buffer = history[self.history_idx].clone();
+                    self.cursor_pos = self.buffer.len();
+                }
+            }
+            KeyEvent::Down => {
+                if self.history_idx < history.len() {
+                    self.history_idx += 1;
+                    if self.history_idx == history.len() {
+                        self.buffer = self.saved_input.clone();
+                    } else {
+                        self.buffer = history[self.history_idx].clone();
+                    }
+                    self.cursor_pos = self.buffer.len();
+                }
+            }
+            KeyEvent::CtrlU => {
+                self.buffer.clear();
+                self.cursor_pos = 0;
+            }
+            KeyEvent::CtrlK => {
+                self.buffer.truncate(self.cursor_pos);
+            }
+            KeyEvent::CtrlW => {
+                if self.cursor_pos > 0 {
+                    let mut new_pos = self.cursor_pos;
+                    while new_pos > 0 && self.buffer.as_bytes().get(new_pos - 1) == Some(&b' ') {
+                        new_pos -= 1;
+                    }
+                    while new_pos > 0 && self.buffer.as_bytes().get(new_pos - 1) != Some(&b' ') {
+                        new_pos -= 1;
+                    }
+                    self.buffer.drain(new_pos..self.cursor_pos);
+                    self.cursor_pos = new_pos;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // LineReader
 // ---------------------------------------------------------------------------
 
@@ -314,10 +472,7 @@ impl LineReader {
         prompt: &str,
         cancel_token: Option<wasibox_core::CancellationToken>,
     ) -> io::Result<Option<String>> {
-        let mut line = String::new();
-        let mut cursor_pos: usize = 0;
-        let mut history_idx: usize = self.history.len();
-        let mut saved_input = String::new();
+        let mut editor = LineEditor::new(self.history.len());
 
         loop {
             let b = {
@@ -325,14 +480,16 @@ impl LineReader {
                 reader.read_exact(&mut buf)?;
                 buf[0]
             };
-            match b {
+
+            let code = match b {
                 // Ctrl-D on empty line => EOF
                 4 => {
-                    if line.is_empty() {
+                    if editor.buffer.is_empty() {
                         write!(writer, "\r\n")?;
                         writer.flush()?;
                         return Ok(None);
                     }
+                    4
                 }
                 // Ctrl-C => discard line
                 3 => {
@@ -342,57 +499,6 @@ impl LineReader {
                     write!(writer, "^C\r\n")?;
                     writer.flush()?;
                     return Ok(Some(String::new()));
-                }
-                // Enter (CR or LF)
-                b'\r' | b'\n' => {
-                    write!(writer, "\r\n")?;
-                    writer.flush()?;
-                    self.push_history(&line);
-                    return Ok(Some(line));
-                }
-                // Backspace (127 = DEL on most terminals, 8 = BS)
-                127 | 8 => {
-                    if cursor_pos > 0 {
-                        cursor_pos -= 1;
-                        line.remove(cursor_pos);
-                        Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                    }
-                }
-                // Ctrl-A => Home
-                1 => {
-                    cursor_pos = 0;
-                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                }
-                // Ctrl-E => End
-                5 => {
-                    cursor_pos = line.len();
-                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                }
-                // Ctrl-U => clear line
-                21 => {
-                    line.clear();
-                    cursor_pos = 0;
-                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                }
-                // Ctrl-K => kill to end of line
-                11 => {
-                    line.truncate(cursor_pos);
-                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                }
-                // Ctrl-W => delete word backwards
-                23 => {
-                    if cursor_pos > 0 {
-                        let mut new_pos = cursor_pos;
-                        while new_pos > 0 && line.as_bytes()[new_pos - 1] == b' ' {
-                            new_pos -= 1;
-                        }
-                        while new_pos > 0 && line.as_bytes()[new_pos - 1] != b' ' {
-                            new_pos -= 1;
-                        }
-                        line.drain(new_pos..cursor_pos);
-                        cursor_pos = new_pos;
-                        Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                    }
                 }
                 // ESC => start of escape sequence
                 27 => {
@@ -408,90 +514,57 @@ impl LineReader {
                             buf[0]
                         };
                         match seq2 {
-                            // Up arrow
-                            b'A' => {
-                                if !self.history.is_empty() && history_idx > 0 {
-                                    if history_idx == self.history.len() {
-                                        saved_input = line.clone();
-                                    }
-                                    history_idx -= 1;
-                                    line = self.history[history_idx].clone();
-                                    cursor_pos = line.len();
-                                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                                }
-                            }
-                            // Down arrow
-                            b'B' => {
-                                if history_idx < self.history.len() {
-                                    history_idx += 1;
-                                    if history_idx == self.history.len() {
-                                        line = saved_input.clone();
-                                    } else {
-                                        line = self.history[history_idx].clone();
-                                    }
-                                    cursor_pos = line.len();
-                                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                                }
-                            }
-                            // Right arrow
-                            b'C' => {
-                                if cursor_pos < line.len() {
-                                    cursor_pos += 1;
-                                    write!(writer, "\x1b[C")?;
-                                    writer.flush()?;
-                                }
-                            }
-                            // Left arrow
-                            b'D' => {
-                                if cursor_pos > 0 {
-                                    cursor_pos -= 1;
-                                    write!(writer, "\x1b[D")?;
-                                    writer.flush()?;
-                                }
-                            }
-                            // Home
-                            b'H' => {
-                                cursor_pos = 0;
-                                Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                            }
-                            // End
-                            b'F' => {
-                                cursor_pos = line.len();
-                                Self::redraw_line(writer, prompt, &line, cursor_pos)?;
-                            }
-                            // Delete: ESC [ 3 ~
+                            b'A' => 1001, // Up
+                            b'B' => 1002, // Down
+                            b'C' => 1003, // Right
+                            b'D' => 1004, // Left
+                            b'H' => 1005, // Home
+                            b'F' => 1006, // End
                             b'3' => {
                                 let seq3 = {
                                     let mut buf = [0u8; 1];
                                     reader.read_exact(&mut buf)?;
                                     buf[0]
                                 };
-                                if seq3 == b'~' && cursor_pos < line.len() {
-                                    line.remove(cursor_pos);
-                                    Self::redraw_line(writer, prompt, &line, cursor_pos)?;
+                                if seq3 == b'~' {
+                                    1007 // Delete
+                                } else {
+                                    continue;
                                 }
                             }
-                            _ => {
-                                // Unknown escape sequence — ignore
-                            }
+                            _ => continue,
                         }
-                    }
-                    // Else: lone ESC or ESC + unknown — ignore
-                }
-                // Printable ASCII
-                b if b >= 0x20 => {
-                    line.insert(cursor_pos, b as char);
-                    cursor_pos += 1;
-                    if cursor_pos == line.len() {
-                        write!(writer, "{}", b as char)?;
-                        writer.flush()?;
                     } else {
-                        Self::redraw_line(writer, prompt, &line, cursor_pos)?;
+                        continue;
                     }
                 }
-                _ => {
-                    // Ignore other control characters
-                }
+                other => other as u32,
+            };
+
+            if code == 13 || code == 10 { // Enter
+                write!(writer, "\r\n")?;
+                writer.flush()?;
+                self.push_history(&editor.buffer);
+                return Ok(Some(editor.buffer));
+            }
+
+            let old_pos = editor.cursor_pos;
+            let old_len = editor.buffer.len();
+
+            editor.input_char(code, &self.history);
+
+            // Redraw optimization
+            if code >= 0x20 && code < 1000 && old_pos == old_len && editor.cursor_pos == editor.buffer.len() {
+                write!(writer, "{}", char::from_u32(code).unwrap())?;
+                writer.flush()?;
+            } else if code == 1004 && old_pos > editor.cursor_pos && old_pos > 0 { // Left
+                write!(writer, "\x1b[D")?;
+                writer.flush()?;
+            } else if code == 1003 && old_pos < editor.cursor_pos && old_pos < old_len { // Right
+                write!(writer, "\x1b[C")?;
+                writer.flush()?;
+            } else {
+                Self::redraw_line(writer, prompt, &editor.buffer, editor.cursor_pos)?;
             }
         }
     }
@@ -534,6 +607,46 @@ mod tests {
     const UP: &[u8] = b"\x1b[A";
     const DOWN: &[u8] = b"\x1b[B";
     const ENTER: &[u8] = b"\r";
+
+    #[test]
+    fn test_line_editor_basic() {
+        let mut editor = LineEditor::new(0);
+        let history = vec![];
+
+        editor.input_char('a' as u32, &history);
+        editor.input_char('b' as u32, &history);
+        assert_eq!(editor.buffer, "ab");
+        assert_eq!(editor.cursor_pos, 2);
+
+        editor.input_char(1004, &history); // Left
+        assert_eq!(editor.cursor_pos, 1);
+
+        editor.input_char('c' as u32, &history);
+        assert_eq!(editor.buffer, "acb");
+        assert_eq!(editor.cursor_pos, 2);
+
+        editor.input_char(127, &history); // Backspace
+        assert_eq!(editor.buffer, "ab");
+        assert_eq!(editor.cursor_pos, 1);
+    }
+
+    #[test]
+    fn test_line_editor_history() {
+        let history = vec!["first".to_string(), "second".to_string()];
+        let mut editor = LineEditor::new(history.len());
+
+        editor.input_char(1001, &history); // Up
+        assert_eq!(editor.buffer, "second");
+
+        editor.input_char(1001, &history); // Up
+        assert_eq!(editor.buffer, "first");
+
+        editor.input_char(1002, &history); // Down
+        assert_eq!(editor.buffer, "second");
+
+        editor.input_char(1002, &history); // Down
+        assert_eq!(editor.buffer, ""); // Back to current
+    }
 
     #[test]
     fn test_simple_input() {
