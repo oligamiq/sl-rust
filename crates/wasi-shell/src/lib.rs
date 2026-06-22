@@ -202,6 +202,12 @@ impl CommandRegistry {
         reg
     }
 
+    /// Returns the names of all explicitly registered commands
+    /// (excluding the fallback).
+    pub fn command_names(&self) -> Vec<&str> {
+        self.commands.keys().map(|s| s.as_str()).collect()
+    }
+
     /// Register (or replace) a command.
     pub fn register<F>(&mut self, name: impl Into<String>, handler: F)
     where
