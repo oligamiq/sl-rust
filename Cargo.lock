@@ -780,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "sl-rust"
-version = "1.0.15"
+version = "1.0.16"
 dependencies = [
  "crossterm",
  "lazy_static",
@@ -867,7 +867,7 @@ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
 name = "wasi-shell"
-version = "1.0.15"
+version = "1.0.16"
 dependencies = [
  "colored",
  "ctrlc",
@@ -884,7 +884,7 @@ dependencies = [
 
 [[package]]
 name = "wasibox"
-version = "1.0.15"
+version = "1.0.16"
 dependencies = [
  "clap",
  "sl-rust",
@@ -893,7 +893,7 @@ dependencies = [
 
 [[package]]
 name = "wasibox-core"
-version = "1.0.15"
+version = "1.0.16"
 dependencies = [
  "chrono",
  "clap",
