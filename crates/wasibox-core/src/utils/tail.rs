@@ -1,8 +1,8 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
-use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "tail", about = "Output the last part of files")]
@@ -29,7 +29,7 @@ where
     T: Into<OsString> + Clone,
 {
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
-    
+
     if args.files.is_empty() {
         tail_stream(BufReader::new(&mut ctx.stdin), &mut ctx.stdout, args.lines)?;
     } else {
@@ -44,7 +44,11 @@ where
     Ok(())
 }
 
-fn tail_stream<R: BufRead, W: Write>(reader: R, writer: &mut W, lines_count: usize) -> Result<(), String> {
+fn tail_stream<R: BufRead, W: Write>(
+    reader: R,
+    writer: &mut W,
+    lines_count: usize,
+) -> Result<(), String> {
     // Minimal implementation: read all lines and keep last N
     let lines: Vec<String> = reader.lines().filter_map(|l| l.ok()).collect();
     let start = if lines.len() > lines_count {

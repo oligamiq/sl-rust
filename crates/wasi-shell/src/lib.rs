@@ -1,9 +1,9 @@
+use colored::*;
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
-use colored::*;
 pub use wasibox_core::IoContext;
 
 mod readline;
@@ -66,52 +66,91 @@ impl CommandRegistry {
         let mut reg = Self::new();
 
         reg.register("help", |_args, ctx| {
-            writeln!(ctx.stdout, "{}", "Available Commands:".yellow().bold()).map_err(|e| e.to_string())?;
+            writeln!(ctx.stdout, "{}", "Available Commands:".yellow().bold())
+                .map_err(|e| e.to_string())?;
 
             let mut shell_builtins = vec!["cd", "help", "exit"];
-            #[cfg(feature = "clear")] shell_builtins.push("clear");
+            #[cfg(feature = "clear")]
+            shell_builtins.push("clear");
             shell_builtins.sort();
-            writeln!(ctx.stdout, "  Shell Built-ins: {}", shell_builtins.join(", ")).map_err(|e| e.to_string())?;
+            writeln!(
+                ctx.stdout,
+                "  Shell Built-ins: {}",
+                shell_builtins.join(", ")
+            )
+            .map_err(|e| e.to_string())?;
 
             #[cfg(feature = "sl")]
             writeln!(ctx.stdout, "  Animations: sl").map_err(|e| e.to_string())?;
 
             let mut utils = Vec::new();
-            #[cfg(feature = "arch")] utils.push("arch");
-            #[cfg(feature = "basename")] utils.push("basename");
-            #[cfg(feature = "cat")] utils.push("cat");
-            #[cfg(feature = "cp")] utils.push("cp");
-            #[cfg(feature = "dir")] utils.push("dir");
-            #[cfg(feature = "dirname")] utils.push("dirname");
-            #[cfg(feature = "echo")] utils.push("echo");
-            #[cfg(feature = "env")] utils.push("env");
-            #[cfg(feature = "false")] utils.push("false");
-            #[cfg(feature = "grep")] utils.push("grep");
-            #[cfg(feature = "head")] utils.push("head");
-            #[cfg(feature = "link")] utils.push("link");
-            #[cfg(feature = "ln")] utils.push("ln");
-            #[cfg(feature = "ls")] utils.push("ls");
-            #[cfg(feature = "mkdir")] utils.push("mkdir");
-            #[cfg(feature = "mv")] utils.push("mv");
-            #[cfg(feature = "pwd")] utils.push("pwd");
-            #[cfg(feature = "rm")] utils.push("rm");
-            #[cfg(feature = "rmdir")] utils.push("rmdir");
-            #[cfg(feature = "seq")] utils.push("seq");
-            #[cfg(feature = "sleep")] utils.push("sleep");
-            #[cfg(feature = "tail")] utils.push("tail");
-            #[cfg(feature = "tee")] utils.push("tee");
-            #[cfg(feature = "touch")] utils.push("touch");
-            #[cfg(feature = "tree")] utils.push("tree");
-            #[cfg(feature = "true")] utils.push("true");
-            #[cfg(feature = "uname")] utils.push("uname");
-            #[cfg(feature = "unlink")] utils.push("unlink");
-            #[cfg(feature = "wc")] utils.push("wc");
-            #[cfg(feature = "whoami")] utils.push("whoami");
-            #[cfg(feature = "yes")] utils.push("yes");
+            #[cfg(feature = "arch")]
+            utils.push("arch");
+            #[cfg(feature = "basename")]
+            utils.push("basename");
+            #[cfg(feature = "cat")]
+            utils.push("cat");
+            #[cfg(feature = "cp")]
+            utils.push("cp");
+            #[cfg(feature = "dir")]
+            utils.push("dir");
+            #[cfg(feature = "dirname")]
+            utils.push("dirname");
+            #[cfg(feature = "echo")]
+            utils.push("echo");
+            #[cfg(feature = "env")]
+            utils.push("env");
+            #[cfg(feature = "false")]
+            utils.push("false");
+            #[cfg(feature = "grep")]
+            utils.push("grep");
+            #[cfg(feature = "head")]
+            utils.push("head");
+            #[cfg(feature = "link")]
+            utils.push("link");
+            #[cfg(feature = "ln")]
+            utils.push("ln");
+            #[cfg(feature = "ls")]
+            utils.push("ls");
+            #[cfg(feature = "mkdir")]
+            utils.push("mkdir");
+            #[cfg(feature = "mv")]
+            utils.push("mv");
+            #[cfg(feature = "pwd")]
+            utils.push("pwd");
+            #[cfg(feature = "rm")]
+            utils.push("rm");
+            #[cfg(feature = "rmdir")]
+            utils.push("rmdir");
+            #[cfg(feature = "seq")]
+            utils.push("seq");
+            #[cfg(feature = "sleep")]
+            utils.push("sleep");
+            #[cfg(feature = "tail")]
+            utils.push("tail");
+            #[cfg(feature = "tee")]
+            utils.push("tee");
+            #[cfg(feature = "touch")]
+            utils.push("touch");
+            #[cfg(feature = "tree")]
+            utils.push("tree");
+            #[cfg(feature = "true")]
+            utils.push("true");
+            #[cfg(feature = "uname")]
+            utils.push("uname");
+            #[cfg(feature = "unlink")]
+            utils.push("unlink");
+            #[cfg(feature = "wc")]
+            utils.push("wc");
+            #[cfg(feature = "whoami")]
+            utils.push("whoami");
+            #[cfg(feature = "yes")]
+            utils.push("yes");
 
             if !utils.is_empty() {
                 utils.sort();
-                writeln!(ctx.stdout, "  Core Utilities: {}", utils.join(", ")).map_err(|e| e.to_string())?;
+                writeln!(ctx.stdout, "  Core Utilities: {}", utils.join(", "))
+                    .map_err(|e| e.to_string())?;
             }
             Ok(())
         });
@@ -137,67 +176,129 @@ impl CommandRegistry {
 
         // Register coreutils from wasibox-core
         #[cfg(feature = "arch")]
-        reg.register("arch", |args, ctx| wasibox_core::utils::arch::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("arch", |args, ctx| {
+            wasibox_core::utils::arch::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "basename")]
-        reg.register("basename", |args, ctx| wasibox_core::utils::basename::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("basename", |args, ctx| {
+            wasibox_core::utils::basename::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "cat")]
-        reg.register("cat", |args, ctx| wasibox_core::utils::cat::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("cat", |args, ctx| {
+            wasibox_core::utils::cat::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "cp")]
-        reg.register("cp", |args, ctx| wasibox_core::utils::cp::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("cp", |args, ctx| {
+            wasibox_core::utils::cp::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "dir")]
-        reg.register("dir", |args, ctx| wasibox_core::utils::dir::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("dir", |args, ctx| {
+            wasibox_core::utils::dir::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "dirname")]
-        reg.register("dirname", |args, ctx| wasibox_core::utils::dirname::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("dirname", |args, ctx| {
+            wasibox_core::utils::dirname::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "echo")]
-        reg.register("echo", |args, ctx| wasibox_core::utils::echo::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("echo", |args, ctx| {
+            wasibox_core::utils::echo::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "env")]
-        reg.register("env", |args, ctx| wasibox_core::utils::env::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("env", |args, ctx| {
+            wasibox_core::utils::env::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "false")]
-        reg.register("false", |args, ctx| wasibox_core::utils::r#false::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("false", |args, ctx| {
+            wasibox_core::utils::r#false::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "grep")]
-        reg.register("grep", |args, ctx| wasibox_core::utils::grep::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("grep", |args, ctx| {
+            wasibox_core::utils::grep::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "head")]
-        reg.register("head", |args, ctx| wasibox_core::utils::head::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("head", |args, ctx| {
+            wasibox_core::utils::head::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "link")]
-        reg.register("link", |args, ctx| wasibox_core::utils::link::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("link", |args, ctx| {
+            wasibox_core::utils::link::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "ln")]
-        reg.register("ln", |args, ctx| wasibox_core::utils::ln::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("ln", |args, ctx| {
+            wasibox_core::utils::ln::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "ls")]
-        reg.register("ls", |args, ctx| wasibox_core::utils::ls::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("ls", |args, ctx| {
+            wasibox_core::utils::ls::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "mkdir")]
-        reg.register("mkdir", |args, ctx| wasibox_core::utils::mkdir::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("mkdir", |args, ctx| {
+            wasibox_core::utils::mkdir::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "mv")]
-        reg.register("mv", |args, ctx| wasibox_core::utils::mv::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("mv", |args, ctx| {
+            wasibox_core::utils::mv::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "pwd")]
-        reg.register("pwd", |args, ctx| wasibox_core::utils::pwd::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("pwd", |args, ctx| {
+            wasibox_core::utils::pwd::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "rm")]
-        reg.register("rm", |args, ctx| wasibox_core::utils::rm::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("rm", |args, ctx| {
+            wasibox_core::utils::rm::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "rmdir")]
-        reg.register("rmdir", |args, ctx| wasibox_core::utils::rmdir::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("rmdir", |args, ctx| {
+            wasibox_core::utils::rmdir::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "seq")]
-        reg.register("seq", |args, ctx| wasibox_core::utils::seq::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("seq", |args, ctx| {
+            wasibox_core::utils::seq::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "sleep")]
-        reg.register("sleep", |args, ctx| wasibox_core::utils::sleep::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("sleep", |args, ctx| {
+            wasibox_core::utils::sleep::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "tail")]
-        reg.register("tail", |args, ctx| wasibox_core::utils::tail::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("tail", |args, ctx| {
+            wasibox_core::utils::tail::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "tee")]
-        reg.register("tee", |args, ctx| wasibox_core::utils::tee::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("tee", |args, ctx| {
+            wasibox_core::utils::tee::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "touch")]
-        reg.register("touch", |args, ctx| wasibox_core::utils::touch::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("touch", |args, ctx| {
+            wasibox_core::utils::touch::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "tree")]
-        reg.register("tree", |args, ctx| wasibox_core::utils::tree::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("tree", |args, ctx| {
+            wasibox_core::utils::tree::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "true")]
-        reg.register("true", |args, ctx| wasibox_core::utils::r#true::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("true", |args, ctx| {
+            wasibox_core::utils::r#true::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "uname")]
-        reg.register("uname", |args, ctx| wasibox_core::utils::uname::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("uname", |args, ctx| {
+            wasibox_core::utils::uname::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "unlink")]
-        reg.register("unlink", |args, ctx| wasibox_core::utils::unlink::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("unlink", |args, ctx| {
+            wasibox_core::utils::unlink::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "wc")]
-        reg.register("wc", |args, ctx| wasibox_core::utils::wc::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("wc", |args, ctx| {
+            wasibox_core::utils::wc::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "whoami")]
-        reg.register("whoami", |args, ctx| wasibox_core::utils::whoami::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("whoami", |args, ctx| {
+            wasibox_core::utils::whoami::execute_with_context(args.iter().cloned(), ctx)
+        });
         #[cfg(feature = "yes")]
-        reg.register("yes", |args, ctx| wasibox_core::utils::yes::execute_with_context(args.iter().cloned(), ctx));
+        reg.register("yes", |args, ctx| {
+            wasibox_core::utils::yes::execute_with_context(args.iter().cloned(), ctx)
+        });
 
         reg
     }
@@ -258,9 +359,7 @@ impl Default for CommandRegistry {
 
 /// Check if an error string represents a BrokenPipe (normal pipeline termination).
 fn is_broken_pipe(err: &str) -> bool {
-    err.contains("Broken pipe")
-        || err.contains("BrokenPipe")
-        || err.contains("broken pipe")
+    err.contains("Broken pipe") || err.contains("BrokenPipe") || err.contains("broken pipe")
 }
 
 /// Execute a shell pipeline (commands separated by `|`).
@@ -278,6 +377,60 @@ pub fn handle_pipeline(
 
     let mut final_stdout = Some(final_stdout);
 
+    if stages_str.len() == 1 {
+        let mut tokens = shlex::split(stages_str[0].trim())
+            .ok_or_else(|| "Error: Invalid input (quoting error)".to_string())?;
+        let mut stdout: Box<dyn Write + Send> = final_stdout.take().unwrap();
+        if let Some(pos) = tokens.iter().position(|t| t == ">" || t == ">>") {
+            let append = tokens[pos] == ">>";
+            let filename = tokens
+                .get(pos + 1)
+                .ok_or("Error: Missing file for redirection")?;
+            let file = if append {
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(filename)
+            } else {
+                File::create(filename)
+            }
+            .map_err(|e| format!("Error opening file: {}", e))?;
+            stdout = Box::new(file);
+            tokens.truncate(pos);
+        }
+
+        if cancel_token.is_cancelled() {
+            return Err("Interrupted".to_string());
+        }
+        let wrapped_stdin = Box::new(CancelReader {
+            inner: initial_stdin,
+            token: cancel_token.clone(),
+        });
+        let wrapped_stdout = Box::new(CancelWriter {
+            inner: stdout,
+            token: cancel_token.clone(),
+        });
+        let wrapped_stderr = Box::new(CancelWriter {
+            inner: Box::new(io::stderr()),
+            token: cancel_token.clone(),
+        });
+
+        let mut ctx = IoContext::with_cancel(
+            wrapped_stdin,
+            wrapped_stdout,
+            wrapped_stderr,
+            cancel_token.clone(),
+        );
+        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            registry.execute(&tokens, &mut ctx)
+        }))
+        .unwrap_or_else(|_| Err("Thread panicked".to_string()));
+        if cancel_token.is_cancelled() {
+            return Err("Interrupted".to_string());
+        }
+        return res;
+    }
+
     std::thread::scope(|s| {
         let mut prev_reader: Box<dyn Read + Send> = initial_stdin;
         let mut threads = Vec::new();
@@ -288,24 +441,31 @@ pub fn handle_pipeline(
                 .ok_or_else(|| "Error: Invalid input (quoting error)".to_string())?;
 
             let stdin = std::mem::replace(&mut prev_reader, Box::new(io::empty()));
-            let (stdout, next_reader): (Box<dyn Write + Send>, Option<Box<dyn Read + Send>>) = if is_last {
-                let mut out: Box<dyn Write + Send> = final_stdout.take().unwrap();
-                if let Some(pos) = tokens.iter().position(|t| t == ">" || t == ">>") {
-                    let append = tokens[pos] == ">>";
-                    let filename = tokens.get(pos + 1).ok_or("Error: Missing file for redirection")?;
-                    let file = if append {
-                        std::fs::OpenOptions::new().create(true).append(true).open(filename)
-                    } else {
-                        File::create(filename)
-                    }.map_err(|e| format!("Error opening file: {}", e))?;
-                    out = Box::new(file);
-                    tokens.truncate(pos);
-                }
-                (out, None)
-            } else {
-                let (reader, writer) = create_pipe(cancel_token.clone());
-                (Box::new(writer), Some(Box::new(reader)))
-            };
+            let (stdout, next_reader): (Box<dyn Write + Send>, Option<Box<dyn Read + Send>>) =
+                if is_last {
+                    let mut out: Box<dyn Write + Send> = final_stdout.take().unwrap();
+                    if let Some(pos) = tokens.iter().position(|t| t == ">" || t == ">>") {
+                        let append = tokens[pos] == ">>";
+                        let filename = tokens
+                            .get(pos + 1)
+                            .ok_or("Error: Missing file for redirection")?;
+                        let file = if append {
+                            std::fs::OpenOptions::new()
+                                .create(true)
+                                .append(true)
+                                .open(filename)
+                        } else {
+                            File::create(filename)
+                        }
+                        .map_err(|e| format!("Error opening file: {}", e))?;
+                        out = Box::new(file);
+                        tokens.truncate(pos);
+                    }
+                    (out, None)
+                } else {
+                    let (reader, writer) = create_pipe(cancel_token.clone());
+                    (Box::new(writer), Some(Box::new(reader)))
+                };
 
             if let Some(r) = next_reader {
                 prev_reader = r;
@@ -316,11 +476,25 @@ pub fn handle_pipeline(
                 if cancel_clone.is_cancelled() {
                     return Err("Interrupted".to_string());
                 }
-                let wrapped_stdin = Box::new(CancelReader { inner: stdin, token: cancel_clone.clone() });
-                let wrapped_stdout = Box::new(CancelWriter { inner: stdout, token: cancel_clone.clone() });
-                let wrapped_stderr = Box::new(CancelWriter { inner: Box::new(io::stderr()), token: cancel_clone.clone() });
+                let wrapped_stdin = Box::new(CancelReader {
+                    inner: stdin,
+                    token: cancel_clone.clone(),
+                });
+                let wrapped_stdout = Box::new(CancelWriter {
+                    inner: stdout,
+                    token: cancel_clone.clone(),
+                });
+                let wrapped_stderr = Box::new(CancelWriter {
+                    inner: Box::new(io::stderr()),
+                    token: cancel_clone.clone(),
+                });
 
-                let mut ctx = IoContext::with_cancel(wrapped_stdin, wrapped_stdout, wrapped_stderr, cancel_clone.clone());
+                let mut ctx = IoContext::with_cancel(
+                    wrapped_stdin,
+                    wrapped_stdout,
+                    wrapped_stderr,
+                    cancel_clone.clone(),
+                );
                 let res = registry.execute(&tokens, &mut ctx);
                 if cancel_clone.is_cancelled() {
                     return Err("Interrupted".to_string());
@@ -361,30 +535,66 @@ pub fn handle_pipeline(
 /// The first line receives `initial_stdin` / `final_stdout`; all subsequent
 /// lines use `io::empty()` / `io::stdout()`.
 pub fn handle_parallel(
-    lines: Vec<String>,
+    mut lines: Vec<String>,
     initial_stdin: Box<dyn Read + Send + 'static>,
     final_stdout: Box<dyn Write + Send + 'static>,
     registry: Arc<CommandRegistry>,
     cancel_token: wasibox_core::CancellationToken,
 ) -> Vec<Result<(), String>> {
+    if lines.len() == 1 {
+        let line = lines.pop().unwrap();
+        let mut stdin_opt: Option<Box<dyn Read + Send>> = Some(initial_stdin);
+        let mut stdout_opt: Option<Box<dyn Write + Send>> = Some(final_stdout);
+        let result = (|| {
+            let commands: Vec<&str> = line.split("&&").collect();
+            for cmd in commands {
+                let cmd = cmd.trim();
+                if cmd.is_empty() {
+                    continue;
+                }
+                if cancel_token.is_cancelled() {
+                    return Err("Interrupted".to_string());
+                }
+                let stdin = stdin_opt.take().unwrap_or_else(|| Box::new(io::empty()));
+                let stdout = stdout_opt.take().unwrap_or_else(|| Box::new(io::stdout()));
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    handle_pipeline(cmd, stdin, stdout, &*registry, cancel_token.clone())
+                }))
+                .unwrap_or_else(|_| Err("Thread panicked".to_string()))?;
+            }
+            Ok(())
+        })();
+        return vec![result];
+    }
+
     let mut handles = Vec::new();
     let mut stdin_opt: Option<Box<dyn Read + Send>> = Some(initial_stdin);
     let mut stdout_opt: Option<Box<dyn Write + Send>> = Some(final_stdout);
 
     for line in lines {
         let registry = Arc::clone(&registry);
-        let mut stdin_for_thread: Option<Box<dyn Read + Send>> = Some(stdin_opt.take().unwrap_or_else(|| Box::new(io::empty())));
-        let mut stdout_for_thread: Option<Box<dyn Write + Send>> = Some(stdout_opt.take().unwrap_or_else(|| Box::new(io::stdout())));
+        let mut stdin_for_thread: Option<Box<dyn Read + Send>> =
+            Some(stdin_opt.take().unwrap_or_else(|| Box::new(io::empty())));
+        let mut stdout_for_thread: Option<Box<dyn Write + Send>> =
+            Some(stdout_opt.take().unwrap_or_else(|| Box::new(io::stdout())));
 
         let cancel_clone = cancel_token.clone();
         let handle = std::thread::spawn(move || {
             let commands: Vec<&str> = line.split("&&").collect();
             for cmd in commands {
                 let cmd = cmd.trim();
-                if cmd.is_empty() { continue; }
-                if cancel_clone.is_cancelled() { return Err("Interrupted".to_string()); }
-                let stdin = stdin_for_thread.take().unwrap_or_else(|| Box::new(io::empty()));
-                let stdout = stdout_for_thread.take().unwrap_or_else(|| Box::new(io::stdout()));
+                if cmd.is_empty() {
+                    continue;
+                }
+                if cancel_clone.is_cancelled() {
+                    return Err("Interrupted".to_string());
+                }
+                let stdin = stdin_for_thread
+                    .take()
+                    .unwrap_or_else(|| Box::new(io::empty()));
+                let stdout = stdout_for_thread
+                    .take()
+                    .unwrap_or_else(|| Box::new(io::stdout()));
                 handle_pipeline(cmd, stdin, stdout, &*registry, cancel_clone.clone())?;
             }
             Ok(())
@@ -392,7 +602,8 @@ pub fn handle_parallel(
         handles.push(handle);
     }
 
-    handles.into_iter()
+    handles
+        .into_iter()
         .map(|h| h.join().unwrap_or(Err("Thread panicked".to_string())))
         .collect()
 }
@@ -410,8 +621,16 @@ pub fn handle_command_line(
         if cmd.is_empty() {
             continue;
         }
-        if cancel_token.is_cancelled() { return Err("Interrupted".to_string()); }
-        handle_pipeline(cmd, Box::new(io::stdin()), Box::new(io::stdout()), registry, cancel_token.clone())?;
+        if cancel_token.is_cancelled() {
+            return Err("Interrupted".to_string());
+        }
+        handle_pipeline(
+            cmd,
+            Box::new(io::stdin()),
+            Box::new(io::stdout()),
+            registry,
+            cancel_token.clone(),
+        )?;
     }
     Ok(())
 }
@@ -496,22 +715,34 @@ impl Write for PipeWriter {
         if self.token.is_cancelled() {
             return Err(io::Error::new(io::ErrorKind::BrokenPipe, "Interrupted"));
         }
-        self.tx.send(buf.to_vec()).map_err(|e| io::Error::new(io::ErrorKind::BrokenPipe, e))?;
+        self.tx
+            .send(buf.to_vec())
+            .map_err(|e| io::Error::new(io::ErrorKind::BrokenPipe, e))?;
         Ok(buf.len())
     }
-    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 fn create_pipe(token: wasibox_core::CancellationToken) -> (PipeReader, PipeWriter) {
     let (tx, rx) = std::sync::mpsc::sync_channel(1024);
-    (PipeReader { rx, buffer: Vec::new(), pos: 0, token: token.clone() }, PipeWriter { tx, token })
+    (
+        PipeReader {
+            rx,
+            buffer: Vec::new(),
+            pos: 0,
+            token: token.clone(),
+        },
+        PipeWriter { tx, token },
+    )
 }
 
 // ---------------------------------------------------------------------------
 // Stdin Multiplexer (for signals on platforms without them)
 // ---------------------------------------------------------------------------
 
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc::{self, Receiver, Sender};
 
 /// A shared stdin reader that can be monitored by a background thread
 /// to intercept control characters (like Ctrl-C) on platforms without signals.
@@ -544,9 +775,7 @@ impl StdinMultiplexer {
                         }
                         // Broadcast to all active subscribers
                         let mut subs = mux_clone.tx_subscribers.lock().unwrap();
-                        subs.retain(|tx| {
-                            tx.send(data.to_vec()).is_ok()
-                        });
+                        subs.retain(|tx| tx.send(data.to_vec()).is_ok());
                     }
                     Err(_) => {
                         // On some platforms, read error might be temporary,
@@ -563,7 +792,11 @@ impl StdinMultiplexer {
     pub fn subscribe(&self) -> MultiplexedReader {
         let (tx, rx) = mpsc::channel();
         self.tx_subscribers.lock().unwrap().push(tx);
-        MultiplexedReader { rx, buffer: Vec::new(), pos: 0 }
+        MultiplexedReader {
+            rx,
+            buffer: Vec::new(),
+            pos: 0,
+        }
     }
 }
 
@@ -598,11 +831,16 @@ pub struct ArcVecWriter {
 }
 impl Write for ArcVecWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let mut inner = self.inner.lock().map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         inner.extend_from_slice(buf);
         Ok(buf.len())
     }
-    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -638,15 +876,87 @@ mod tests {
     #[test]
     fn test_simple_echo() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "echo hello",
+            Box::new(Cursor::new("")),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "hello");
     }
 
     #[test]
+    fn test_single_stage_pipeline_runs_inline() {
+        let caller_thread = format!("{:?}", std::thread::current().id());
+        let observed_thread = Arc::new(Mutex::new(None));
+        let observed_thread_clone = Arc::clone(&observed_thread);
+
+        let mut reg = CommandRegistry::new();
+        reg.remove_fallback();
+        reg.register("record-thread", move |_args, _ctx| {
+            *observed_thread_clone.lock().unwrap() =
+                Some(format!("{:?}", std::thread::current().id()));
+            Ok(())
+        });
+
+        handle_pipeline(
+            "record-thread",
+            Box::new(Cursor::new("")),
+            Box::new(io::sink()),
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            observed_thread.lock().unwrap().as_deref(),
+            Some(caller_thread.as_str())
+        );
+    }
+
+    #[test]
+    fn test_single_stage_pipeline_catches_panics() {
+        let mut reg = CommandRegistry::new();
+        reg.remove_fallback();
+        reg.register("panic", |_args, _ctx| {
+            panic!("intentional test panic");
+        });
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            handle_pipeline(
+                "panic",
+                Box::new(Cursor::new("")),
+                Box::new(io::sink()),
+                &reg,
+                wasibox_core::CancellationToken::new(),
+            )
+        }));
+
+        assert!(
+            result.is_ok(),
+            "single-stage panic should be converted to Err"
+        );
+        assert_eq!(result.unwrap(), Err("Thread panicked".to_string()));
+    }
+
+    #[test]
     fn test_pipe_echo_cat() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello | cat", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "echo hello | cat",
+            Box::new(Cursor::new("")),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "hello");
     }
@@ -654,7 +964,16 @@ mod tests {
     #[test]
     fn test_pipe_grep() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo world | grep world", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "echo world | grep world",
+            Box::new(Cursor::new("")),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "world");
     }
@@ -664,7 +983,14 @@ mod tests {
         let dir = get_temp_dir();
         let file_path = dir.path().join("test_create.txt");
         let cmd = format!("echo hello > \"{}\"", file_path.display());
-        handle_pipeline(&cmd, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            &cmd,
+            Box::new(Cursor::new("")),
+            Box::new(io::sink()),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let content = std::fs::read_to_string(file_path).unwrap();
         assert_eq!(content.trim(), "hello");
     }
@@ -674,9 +1000,23 @@ mod tests {
         let dir = get_temp_dir();
         let file_path = dir.path().join("test_append.txt");
         let cmd1 = format!("echo hello > \"{}\"", file_path.display());
-        handle_pipeline(&cmd1, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            &cmd1,
+            Box::new(Cursor::new("")),
+            Box::new(io::sink()),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let cmd2 = format!("echo world >> \"{}\"", file_path.display());
-        handle_pipeline(&cmd2, Box::new(Cursor::new("")), Box::new(io::sink()), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            &cmd2,
+            Box::new(Cursor::new("")),
+            Box::new(io::sink()),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let content = std::fs::read_to_string(file_path).unwrap();
         assert!(content.contains("hello"));
         assert!(content.contains("world"));
@@ -685,7 +1025,16 @@ mod tests {
     #[test]
     fn test_complex_pipeline() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello | grep h | wc -c", Box::new(Cursor::new("")), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "echo hello | grep h | wc -c",
+            Box::new(Cursor::new("")),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "6");
     }
@@ -700,7 +1049,16 @@ mod tests {
         });
 
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("magic", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "magic",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf), "magic happen");
     }
@@ -715,14 +1073,27 @@ mod tests {
                     Ok(l) => l,
                     Err(_) => break,
                 };
-                if writeln!(ctx.stdout, "{}", line).is_err() { break; }
-                if writeln!(ctx.stdout, "{}", line).is_err() { break; }
+                if writeln!(ctx.stdout, "{}", line).is_err() {
+                    break;
+                }
+                if writeln!(ctx.stdout, "{}", line).is_err() {
+                    break;
+                }
             }
             Ok(())
         });
 
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello | double", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "echo hello | double",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "hello\nhello");
     }
@@ -737,7 +1108,16 @@ mod tests {
         });
 
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("echo hello", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "echo hello",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "HELLO");
     }
@@ -752,7 +1132,9 @@ mod tests {
         // "count" — infinite counter
         reg.register("count", |_args, ctx| {
             for i in 1u64.. {
-                if writeln!(ctx.stdout, "{}", i).is_err() { break; }
+                if writeln!(ctx.stdout, "{}", i).is_err() {
+                    break;
+                }
             }
             Ok(())
         });
@@ -765,7 +1147,9 @@ mod tests {
                     Err(_) => break,
                 };
                 if line.contains('2') {
-                    if writeln!(ctx.stdout, "{}", line).is_err() { break; }
+                    if writeln!(ctx.stdout, "{}", line).is_err() {
+                        break;
+                    }
                 }
             }
             Ok(())
@@ -775,12 +1159,16 @@ mod tests {
         reg.register("take", |args, ctx| {
             let n: usize = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(5);
             for (i, line) in BufReader::new(&mut ctx.stdin).lines().enumerate() {
-                if i >= n { break; }
+                if i >= n {
+                    break;
+                }
                 let line = match line {
                     Ok(l) => l,
                     Err(_) => break,
                 };
-                if writeln!(ctx.stdout, "{}", line).is_err() { break; }
+                if writeln!(ctx.stdout, "{}", line).is_err() {
+                    break;
+                }
             }
             Ok(())
         });
@@ -789,10 +1177,13 @@ mod tests {
         handle_pipeline(
             "count | filter2 | take 3",
             Box::new(io::empty()),
-            Box::new(ArcVecWriter { inner: Arc::clone(&out) }),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
             &reg,
             wasibox_core::CancellationToken::new(),
-        ).unwrap();
+        )
+        .unwrap();
 
         let buf = out.lock().unwrap();
         let result = String::from_utf8_lossy(&buf);
@@ -819,7 +1210,13 @@ mod tests {
 
         let lines = vec!["slow".to_string(), "slow".to_string(), "slow".to_string()];
         let start = std::time::Instant::now();
-        let results = handle_parallel(lines, Box::new(io::empty()), Box::new(io::sink()), registry, wasibox_core::CancellationToken::new());
+        let results = handle_parallel(
+            lines,
+            Box::new(io::empty()),
+            Box::new(io::sink()),
+            registry,
+            wasibox_core::CancellationToken::new(),
+        );
         let duration = start.elapsed();
 
         assert_eq!(results.len(), 3);
@@ -829,12 +1226,65 @@ mod tests {
         assert!(duration < std::time::Duration::from_millis(250));
     }
 
+    #[test]
+    fn test_single_parallel_command_runs_inline() {
+        let caller_thread = std::thread::current().id();
+        let observed_thread = Arc::new(Mutex::new(None));
+        let observed_thread_for_cmd = Arc::clone(&observed_thread);
+
+        let mut reg = CommandRegistry::new();
+        reg.remove_fallback();
+        reg.register("record-thread", move |_args, _ctx| {
+            *observed_thread_for_cmd.lock().unwrap() = Some(std::thread::current().id());
+            Ok(())
+        });
+
+        let results = handle_parallel(
+            vec!["record-thread".to_string()],
+            Box::new(io::empty()),
+            Box::new(io::sink()),
+            Arc::new(reg),
+            wasibox_core::CancellationToken::new(),
+        );
+
+        assert_eq!(results, vec![Ok(())]);
+        assert_eq!(*observed_thread.lock().unwrap(), Some(caller_thread));
+    }
+
+    #[test]
+    fn test_single_parallel_command_catches_panics() {
+        let mut reg = CommandRegistry::new();
+        reg.remove_fallback();
+        reg.register("panic", |_args, _ctx| {
+            panic!("intentional test panic");
+        });
+
+        let results = handle_parallel(
+            vec!["panic".to_string()],
+            Box::new(io::empty()),
+            Box::new(io::sink()),
+            Arc::new(reg),
+            wasibox_core::CancellationToken::new(),
+        );
+
+        assert_eq!(results, vec![Err("Thread panicked".to_string())]);
+    }
+
     // ── streaming / infinite pipeline tests ─────────────────────────────
 
     #[test]
     fn test_streaming_pipeline() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("yes | head -n 2", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "yes | head -n 2",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "y\ny");
     }
@@ -842,7 +1292,16 @@ mod tests {
     #[test]
     fn test_seq_pipeline_head() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq | head -n 5", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "seq | head -n 5",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "1\n2\n3\n4\n5");
     }
@@ -850,7 +1309,16 @@ mod tests {
     #[test]
     fn test_seq_pipeline_grep_head() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq | grep 2 | head -n 3", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "seq | grep 2 | head -n 3",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         let result = String::from_utf8_lossy(&buf);
         let lines: Vec<&str> = result.trim().lines().collect();
@@ -866,7 +1334,16 @@ mod tests {
     #[test]
     fn test_seq_pipeline_grep_head_5() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq | grep 2 | head -n 5", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "seq | grep 2 | head -n 5",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         let result = String::from_utf8_lossy(&buf);
         let lines: Vec<&str> = result.trim().lines().collect();
@@ -881,7 +1358,16 @@ mod tests {
     #[test]
     fn test_seq_finite() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq 3", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "seq 3",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "1\n2\n3");
     }
@@ -889,7 +1375,16 @@ mod tests {
     #[test]
     fn test_seq_range() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq 5 8", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "seq 5 8",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "5\n6\n7\n8");
     }
@@ -897,7 +1392,16 @@ mod tests {
     #[test]
     fn test_seq_step() {
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("seq 1 2 10", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &builtins(), wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "seq 1 2 10",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &builtins(),
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         let buf = out.lock().unwrap();
         assert_eq!(String::from_utf8_lossy(&buf).trim(), "1\n3\n5\n7\n9");
     }
@@ -913,16 +1417,40 @@ mod tests {
 
         // cd into the temp directory
         let cd_cmd = format!("cd \"{}\"", dir.path().display());
-        handle_pipeline(&cd_cmd, Box::new(io::empty()), Box::new(io::sink()), &reg, wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            &cd_cmd,
+            Box::new(io::empty()),
+            Box::new(io::sink()),
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
 
         // ls the current directory (should now be the temp dir)
         let out = Arc::new(Mutex::new(Vec::new()));
-        handle_pipeline("ls", Box::new(io::empty()), Box::new(ArcVecWriter { inner: Arc::clone(&out) }), &reg, wasibox_core::CancellationToken::new()).unwrap();
+        handle_pipeline(
+            "ls",
+            Box::new(io::empty()),
+            Box::new(ArcVecWriter {
+                inner: Arc::clone(&out),
+            }),
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
 
         let buf = out.lock().unwrap();
         let output = String::from_utf8_lossy(&buf);
-        assert!(output.contains("aaa.txt"), "expected aaa.txt in ls output, got: {}", output);
-        assert!(output.contains("bbb.txt"), "expected bbb.txt in ls output, got: {}", output);
+        assert!(
+            output.contains("aaa.txt"),
+            "expected aaa.txt in ls output, got: {}",
+            output
+        );
+        assert!(
+            output.contains("bbb.txt"),
+            "expected bbb.txt in ls output, got: {}",
+            output
+        );
 
         // Restore original cwd
         env::set_current_dir(original_cwd).unwrap();
@@ -941,7 +1469,12 @@ mod tests {
         });
 
         // inc && inc && inc
-        crate::handle_command_line("inc && inc && inc", &reg, wasibox_core::CancellationToken::new()).unwrap();
+        crate::handle_command_line(
+            "inc && inc && inc",
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        )
+        .unwrap();
         assert_eq!(*counter.lock().unwrap(), 3);
     }
 
@@ -958,7 +1491,11 @@ mod tests {
 
         // inc && fail && inc
         // Should stop after "fail"
-        let res = crate::handle_command_line("inc && fail && inc", &reg, wasibox_core::CancellationToken::new());
+        let res = crate::handle_command_line(
+            "inc && fail && inc",
+            &reg,
+            wasibox_core::CancellationToken::new(),
+        );
         assert!(res.is_err());
         assert_eq!(res.unwrap_err(), "simulated failure");
         assert_eq!(*counter.lock().unwrap(), 1); // Only the first "inc" should execute
@@ -1023,7 +1560,7 @@ mod tests {
         let dir = get_temp_dir();
         let file_path = dir.path().join("i.txt");
         let cmd = format!("seq > \"{}\"", file_path.display());
-        
+
         let registry = Arc::new(builtins());
         let cancel_token = wasibox_core::CancellationToken::new();
         let cancel_clone = cancel_token.clone();
@@ -1046,14 +1583,16 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert!(results[0].is_err());
         assert_eq!(results[0].as_ref().unwrap_err(), "Interrupted");
-        
+
         // Verify that the file was created and contains some data
         assert!(file_path.exists());
         let content = std::fs::read_to_string(&file_path).unwrap();
         assert!(!content.is_empty(), "File should not be empty");
-        
+
         // Ensure it stopped
-        println!("Final sequence number written: {}", content.lines().last().unwrap_or("none"));
+        println!(
+            "Final sequence number written: {}",
+            content.lines().last().unwrap_or("none")
+        );
     }
 }
-

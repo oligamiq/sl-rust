@@ -2,8 +2,8 @@ use clap::Parser;
 use std::env;
 use std::ffi::OsString;
 
-use std::io::Write;
 use crate::IoContext;
+use std::io::Write;
 
 #[derive(Parser)]
 #[command(name = "pwd", about = "Print working directory")]

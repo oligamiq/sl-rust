@@ -1,14 +1,13 @@
-
 #[derive(Clone, Debug)]
 pub struct Config {
-    pub accident: bool,      // -a
-    pub c51: bool,          // -c
-    pub logo: bool,         // -l
-    pub flying: bool,       // -F
+    pub accident: bool, // -a
+    pub c51: bool,      // -c
+    pub logo: bool,     // -l
+    pub flying: bool,   // -F
 }
 
 impl Config {
-    pub fn from_args<I, T>(args: I) -> Self 
+    pub fn from_args<I, T>(args: I) -> Self
     where
         I: IntoIterator<Item = T>,
         T: AsRef<str>,

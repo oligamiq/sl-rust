@@ -1,10 +1,15 @@
-use crate::terminal::Terminal;
 use crate::config::Config;
+use crate::smoke::{add_smoke, get_smoke_particles, set_generation_gate, update_smoke};
+use crate::terminal::Terminal;
 use crate::train::ascii::*;
-use crate::smoke::{add_smoke, update_smoke, get_smoke_particles, set_generation_gate};
 use std::io;
 
-pub fn render_frame(terminal: &Terminal, x: i32, pattern: usize, config: &Config) -> io::Result<()> {
+pub fn render_frame(
+    terminal: &Terminal,
+    x: i32,
+    pattern: usize,
+    config: &Config,
+) -> io::Result<()> {
     let frame = build_frame(terminal, x, pattern, config);
     terminal.render_frame(frame)?;
     Ok(())
@@ -12,16 +17,16 @@ pub fn render_frame(terminal: &Terminal, x: i32, pattern: usize, config: &Config
 
 fn build_frame(terminal: &Terminal, x: i32, pattern: usize, config: &Config) -> String {
     let mut frame = String::new();
-    
+
     // Clear screen (ANSI command)
     frame.push_str("\x1B[2J\x1B[H");
-    
+
     // Set generation gate: only generate smoke every 4 frames
     set_generation_gate(x % 4 == 0);
-    
+
     // Update smoke particles (applies movement and increments pattern)
     update_smoke();
-    
+
     // Draw smoke BEFORE train so train renders on top (prevents smoke from overwriting train)
     build_smoke(&mut frame, terminal);
 
@@ -180,25 +185,28 @@ fn build_man(frame: &mut String, terminal: &Terminal, x: i32, _config: &Config) 
 
 fn build_smoke(frame: &mut String, terminal: &Terminal) {
     let particles = get_smoke_particles();
-    
+
     for particle in particles {
         // Particle coordinates have already been updated in build_frame() before this function
         // Only draw if within screen bounds
-        if particle.x >= 0 && particle.x < terminal.width() as i32
-            && particle.y >= 0 && particle.y < terminal.height() as i32 {
-            
+        if particle.x >= 0
+            && particle.x < terminal.width() as i32
+            && particle.y >= 0
+            && particle.y < terminal.height() as i32
+        {
             let pattern_idx = particle.pattern.min(15) as usize;
             let kind = particle.kind % 2;
-            
+
             if let Some(smoke_str) = SMOKE_PATTERN.get(kind) {
                 if let Some(ch_str) = smoke_str.get(pattern_idx) {
                     // Draw all characters from the smoke string (e.g., "(   )")
                     let mut x_offset = 0;
                     for ch in ch_str.chars() {
                         let draw_x = (particle.x as i32 + x_offset) as u16;
-                        if (particle.x as i32 + x_offset) >= 0 
+                        if (particle.x as i32 + x_offset) >= 0
                             && (particle.x as i32 + x_offset) < terminal.width() as i32
-                            && ch != ' ' {
+                            && ch != ' '
+                        {
                             add_char_to_frame(frame, draw_x, particle.y as u16, ch);
                         }
                         x_offset += 1;

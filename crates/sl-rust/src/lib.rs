@@ -1,21 +1,21 @@
+pub mod config;
+pub mod debug;
+pub mod render;
+pub mod smoke;
 pub mod terminal;
 pub mod train;
-pub mod smoke;
-pub mod config;
-pub mod render;
-pub mod debug;
 
-use crate::terminal::{Terminal, InputAction};
 use crate::config::Config;
 use crate::render::render_frame;
+use crate::terminal::{InputAction, Terminal};
+use std::io;
 use std::thread;
 use std::time::Duration;
-use std::io;
 
 const FRAME_TIME_MS: u64 = 40;
 
 /// Runs the SL animation with the given arguments.
-pub fn run<I, T>(args: I) -> io::Result<()> 
+pub fn run<I, T>(args: I) -> io::Result<()>
 where
     I: IntoIterator<Item = T>,
     T: AsRef<str>,
@@ -24,7 +24,10 @@ where
 }
 
 /// Runs the SL animation with a cancellation token.
-pub fn run_with_token<I, T>(args: I, cancel_token: Option<wasibox_core::CancellationToken>) -> io::Result<()>
+pub fn run_with_token<I, T>(
+    args: I,
+    cancel_token: Option<wasibox_core::CancellationToken>,
+) -> io::Result<()>
 where
     I: IntoIterator<Item = T>,
     T: AsRef<str>,
@@ -33,7 +36,13 @@ where
     let terminal = Terminal::new()?;
 
     let width = terminal.width() as i32;
-    let max_length = if config.logo { 40 } else if config.c51 { 95 } else { 83 };
+    let max_length = if config.logo {
+        40
+    } else if config.c51 {
+        95
+    } else {
+        83
+    };
 
     let mut pattern = 0usize;
     let mut paused = false;

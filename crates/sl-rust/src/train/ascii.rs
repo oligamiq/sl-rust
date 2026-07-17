@@ -129,38 +129,15 @@ pub const C51_COAL: [&str; 10] = [
 ];
 
 // LOGO (SL)
-pub const LOGO_STR: [&str; 4] = [
-    "   ;  ; ",
-    "  ;;; ;;",
-    "   ;  ; ",
-    "         ",
-];
+pub const LOGO_STR: [&str; 4] = ["   ;  ; ", "  ;;; ;;", "   ;  ; ", "         "];
 
 pub const LOGO_WHL: [[&str; 2]; 6] = [
-    [
-        "  /~\\___/~\\  /~\\___/~\\ ",
-        " /  O  O  O \\/ O  O  O \\",
-    ],
-    [
-        "  /~\\___/~\\  /~\\___/~\\ ",
-        " / O  O  O  O  O  O  O ",
-    ],
-    [
-        "  /~\\___/~\\  /~\\___/~\\ ",
-        "O  O  O  O  O  O  O  O ",
-    ],
-    [
-        "  /~\\___/~\\  /~\\___/~\\ ",
-        " O  O  O  O  O  O  O  /",
-    ],
-    [
-        "  /~\\___/~\\  /~\\___/~\\ ",
-        " /  O  O  O  O  O  O  /",
-    ],
-    [
-        "  /~\\___/~\\  /~\\___/~\\ ",
-        " \\  O  O  O  O  O  O  /",
-    ],
+    ["  /~\\___/~\\  /~\\___/~\\ ", " /  O  O  O \\/ O  O  O \\"],
+    ["  /~\\___/~\\  /~\\___/~\\ ", " / O  O  O  O  O  O  O "],
+    ["  /~\\___/~\\  /~\\___/~\\ ", "O  O  O  O  O  O  O  O "],
+    ["  /~\\___/~\\  /~\\___/~\\ ", " O  O  O  O  O  O  O  /"],
+    ["  /~\\___/~\\  /~\\___/~\\ ", " /  O  O  O  O  O  O  /"],
+    ["  /~\\___/~\\  /~\\___/~\\ ", " \\  O  O  O  O  O  O  /"],
 ];
 
 pub const LOGO_COAL: [&str; 7] = [
@@ -183,62 +160,55 @@ pub const LOGO_CAR: [&str; 7] = [
     "            ",
 ];
 
-pub const MAN: [&str; 2] = [
-    "  o_o ",
-    "   | ",
-];
+pub const MAN: [&str; 2] = ["  o_o ", "   | "];
 
 // C-compatible smoke patterns (2 kinds x 16 steps)
 // kind=0: normal smoke, kind=1: accident mode smoke
 pub const SMOKE_PATTERN: [[&str; 16]; 2] = [
     [
         // kind=0: normal smoke
-        "(   )",   // 0: expand
-        "(    )",  // 1
-        "(    )",  // 2
-        "(   )",   // 3
-        "(  )",    // 4: contract
-        "(  )",    // 5
-        "( )",     // 6
-        "( )",     // 7
-        "()",      // 8
-        "()",      // 9
-        "O",       // 10: dots
-        "O",       // 11
-        "O",       // 12
-        "O",       // 13
-        "O",       // 14
-        " ",       // 15: disappear
+        "(   )",  // 0: expand
+        "(    )", // 1
+        "(    )", // 2
+        "(   )",  // 3
+        "(  )",   // 4: contract
+        "(  )",   // 5
+        "( )",    // 6
+        "( )",    // 7
+        "()",     // 8
+        "()",     // 9
+        "O",      // 10: dots
+        "O",      // 11
+        "O",      // 12
+        "O",      // 13
+        "O",      // 14
+        " ",      // 15: disappear
     ],
     [
         // kind=1: accident mode smoke
-        "(@@@)",   // 0: expand
-        "(@@@@)",  // 1
-        "(@@@@)",  // 2
-        "(@@@)",   // 3
-        "(@@)",    // 4: contract
-        "(@@)",    // 5
-        "(@)",     // 6
-        "(@)",     // 7
-        "@@",      // 8
-        "@@",      // 9
-        "@",       // 10: dots
-        "@",       // 11
-        "@",       // 12
-        "@",       // 13
-        "@",       // 14
-        " ",       // 15: disappear
+        "(@@@)",  // 0: expand
+        "(@@@@)", // 1
+        "(@@@@)", // 2
+        "(@@@)",  // 3
+        "(@@)",   // 4: contract
+        "(@@)",   // 5
+        "(@)",    // 6
+        "(@)",    // 7
+        "@@",     // 8
+        "@@",     // 9
+        "@",      // 10: dots
+        "@",      // 11
+        "@",      // 12
+        "@",      // 13
+        "@",      // 14
+        " ",      // 15: disappear
     ],
 ];
 
 // C-compatible dy/dx arrays (movement per pattern)
-pub const SMOKE_DY: [i32; 16] = [
-    2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-];
+pub const SMOKE_DY: [i32; 16] = [2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-pub const SMOKE_DX: [i32; 16] = [
-    -2, -1, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3
-];
+pub const SMOKE_DX: [i32; 16] = [-2, -1, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3];
 
 // Eraser patterns (space strings matching smoke pattern sizes)
 pub const SMOKE_ERASER: [&str; 16] = [

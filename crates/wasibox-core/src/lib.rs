@@ -1,12 +1,12 @@
-pub mod utils;
 #[cfg(test)]
 mod tests;
+pub mod utils;
 
 use std::ffi::OsString;
-use std::path::Path;
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A token to cancel running commands.
 #[derive(Clone, Default)]
@@ -16,7 +16,9 @@ pub struct CancellationToken {
 
 impl CancellationToken {
     pub fn new() -> Self {
-        Self { flag: Arc::new(AtomicBool::new(false)) }
+        Self {
+            flag: Arc::new(AtomicBool::new(false)),
+        }
     }
 
     pub fn cancel(&self) {
@@ -46,7 +48,12 @@ impl IoContext {
         stdout: Box<dyn Write + Send>,
         stderr: Box<dyn Write + Send>,
     ) -> Self {
-        Self { stdin, stdout, stderr, cancel_token: CancellationToken::new() }
+        Self {
+            stdin,
+            stdout,
+            stderr,
+            cancel_token: CancellationToken::new(),
+        }
     }
 
     pub fn with_cancel(
@@ -55,7 +62,12 @@ impl IoContext {
         stderr: Box<dyn Write + Send>,
         cancel_token: CancellationToken,
     ) -> Self {
-        Self { stdin, stdout, stderr, cancel_token }
+        Self {
+            stdin,
+            stdout,
+            stderr,
+            cancel_token,
+        }
     }
 }
 
@@ -96,14 +108,15 @@ where
         .trim_end_matches(".exe")
         .trim_end_matches(".wasm");
 
-    let (util_name, util_args) = if prog_name == "core" || prog_name == "core-rust" || prog_name == "wasibox-core" {
-        if args_vec.len() < 2 {
-            return Err("Usage: core <utility> [args...]".to_string());
-        }
-        (args_vec[1].to_string_lossy().to_string(), &args_vec[1..])
-    } else {
-        (prog_name.to_string(), &args_vec[..])
-    };
+    let (util_name, util_args) =
+        if prog_name == "core" || prog_name == "core-rust" || prog_name == "wasibox-core" {
+            if args_vec.len() < 2 {
+                return Err("Usage: core <utility> [args...]".to_string());
+            }
+            (args_vec[1].to_string_lossy().to_string(), &args_vec[1..])
+        } else {
+            (prog_name.to_string(), &args_vec[..])
+        };
 
     match util_name.as_str() {
         #[cfg(feature = "arch")]

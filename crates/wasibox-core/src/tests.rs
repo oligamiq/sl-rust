@@ -6,7 +6,10 @@ mod tests {
     fn get_temp_dir() -> tempfile::TempDir {
         #[cfg(target_os = "wasi")]
         {
-            tempfile::Builder::new().prefix("test_").tempdir_in(".").expect("Failed to create temp dir in current directory")
+            tempfile::Builder::new()
+                .prefix("test_")
+                .tempdir_in(".")
+                .expect("Failed to create temp dir in current directory")
         }
         #[cfg(not(target_os = "wasi"))]
         {
@@ -139,7 +142,7 @@ mod tests {
     fn test_tee() {
         let tmp = get_temp_dir();
         let _file = tmp.path().join("tee_out");
-        
+
         // tee - This is hard to test with stdin without a wrapper
     }
 
@@ -180,7 +183,7 @@ mod tests {
     fn test_seq_cancellation() {
         let mut ctx = crate::IoContext::default();
         let token = ctx.cancel_token.clone();
-        
+
         // Use a thread to cancel the token after a short delay
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(50));
@@ -190,7 +193,7 @@ mod tests {
         // Run an infinite seq command
         let args = vec!["seq"];
         let result = crate::utils::seq::execute_with_context(args, &mut ctx);
-        
+
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Interrupted");
     }

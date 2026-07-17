@@ -1,7 +1,7 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::io::Write;
-use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "arch", about = "Print machine architecture")]
@@ -26,11 +26,23 @@ where
 
 pub fn get_arch() -> &'static str {
     #[cfg(target_os = "wasi")]
-    { "wasm32" }
+    {
+        "wasm32"
+    }
     #[cfg(all(not(target_os = "wasi"), target_arch = "x86_64"))]
-    { "x86_64" }
+    {
+        "x86_64"
+    }
     #[cfg(all(not(target_os = "wasi"), target_arch = "aarch64"))]
-    { "aarch64" }
-    #[cfg(all(not(target_os = "wasi"), not(target_arch = "x86_64"), not(target_arch = "aarch64")))]
-    { "unknown" }
+    {
+        "aarch64"
+    }
+    #[cfg(all(
+        not(target_os = "wasi"),
+        not(target_arch = "x86_64"),
+        not(target_arch = "aarch64")
+    ))]
+    {
+        "unknown"
+    }
 }

@@ -1,7 +1,7 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::io::Write;
-use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "echo", about = "Display a line of text")]

@@ -1,11 +1,11 @@
+use crate::IoContext;
+use chrono::{DateTime, Local};
 use clap::Parser;
 use colored::*;
 use std::ffi::OsString;
 use std::fs;
-use std::path::{Path, PathBuf};
-use chrono::{DateTime, Local};
-use crate::IoContext;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(name = "ls", about = "List directory contents")]
@@ -41,7 +41,7 @@ where
     T: Into<OsString> + Clone,
 {
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
-    
+
     let paths = if args.paths.is_empty() {
         vec![PathBuf::from(".")]
     } else {
@@ -112,17 +112,20 @@ fn render_ls(path: &Path, args: &Args, ctx: &mut IoContext) -> Result<(), String
     entries_vec.sort_by(|a, b| a.name.cmp(&b.name));
 
     if args.long {
-        let total_blocks = entries_vec.iter().map(|e| {
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::MetadataExt;
-                e.metadata.blocks() / 2
-            }
-            #[cfg(not(unix))]
-            {
-                (e.metadata.len() + 1023) / 1024
-            }
-        }).sum::<u64>();
+        let total_blocks = entries_vec
+            .iter()
+            .map(|e| {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    e.metadata.blocks() / 2
+                }
+                #[cfg(not(unix))]
+                {
+                    (e.metadata.len() + 1023) / 1024
+                }
+            })
+            .sum::<u64>();
         writeln!(ctx.stdout, "total {}", total_blocks).map_err(|e| e.to_string())?;
 
         for entry in &entries_vec {
@@ -170,13 +173,20 @@ fn print_long(entry: &EntryInfo, out: &mut Box<dyn Write + Send>) -> Result<(), 
         out,
         "{} {:>3} {:<8} {:<8} {:>8} {} {}",
         mode, nlink, owner, group, size, time, name
-    ).map_err(|e| e.to_string())
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn get_mode_string(meta: &fs::Metadata) -> String {
     let mut s = String::with_capacity(10);
-    s.push(if meta.is_dir() { 'd' } else if meta.is_symlink() { 'l' } else { '-' });
-    
+    s.push(if meta.is_dir() {
+        'd'
+    } else if meta.is_symlink() {
+        'l'
+    } else {
+        '-'
+    });
+
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -219,11 +229,11 @@ fn get_nlink(_meta: &fs::Metadata) -> u64 {
 }
 
 fn get_owner(_meta: &fs::Metadata) -> String {
-    "user".to_string() 
+    "user".to_string()
 }
 
 fn get_group(_meta: &fs::Metadata) -> String {
-    "user".to_string() 
+    "user".to_string()
 }
 
 fn get_time_string(meta: &fs::Metadata) -> String {

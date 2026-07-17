@@ -55,11 +55,11 @@ pub fn update_smoke() {
             return;
         }
         for particle in &mut smoke.particles {
-            use crate::train::ascii::{SMOKE_DY, SMOKE_DX};
-            
+            use crate::train::ascii::{SMOKE_DX, SMOKE_DY};
+
             let dy = SMOKE_DY[particle.pattern];
             let dx = SMOKE_DX[particle.pattern];
-            
+
             particle.y -= dy;
             particle.x += dx;
             particle.pattern += 1;

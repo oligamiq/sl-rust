@@ -1,10 +1,13 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::io::Write;
-use crate::IoContext;
 
 #[derive(Parser)]
-#[command(name = "tee", about = "Read from standard input and write to standard output and files")]
+#[command(
+    name = "tee",
+    about = "Read from standard input and write to standard output and files"
+)]
 struct Args {
     /// Files to write to
     files: Vec<String>,
@@ -48,7 +51,9 @@ where
             Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => break,
             Err(e) => return Err(e.to_string()),
         };
-        if ctx.stdout.write_all(&buffer[..bytes_read]).is_err() { break; }
+        if ctx.stdout.write_all(&buffer[..bytes_read]).is_err() {
+            break;
+        }
         for f in &mut files {
             let _ = f.write_all(&buffer[..bytes_read]);
         }

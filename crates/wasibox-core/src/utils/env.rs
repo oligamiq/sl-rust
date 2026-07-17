@@ -1,8 +1,8 @@
-use std::ffi::OsString;
 use std::env;
+use std::ffi::OsString;
 
-use std::io::Write;
 use crate::IoContext;
+use std::io::Write;
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
 where
@@ -18,7 +18,7 @@ where
     T: Into<OsString> + Clone,
 {
     let args_vec: Vec<OsString> = args.into_iter().map(|a| a.into()).collect();
-    
+
     // For now, only support printing the environment
     if args_vec.len() <= 1 {
         for (key, value) in env::vars() {

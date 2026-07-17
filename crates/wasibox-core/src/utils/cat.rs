@@ -1,8 +1,8 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io;
-use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "cat", about = "Concatenate and print files")]

@@ -1,5 +1,5 @@
-use std::ffi::OsString;
 use crate::utils::ls;
+use std::ffi::OsString;
 
 use crate::IoContext;
 
@@ -16,7 +16,7 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    // GNU dir is essentially ls with some different defaults, 
+    // GNU dir is essentially ls with some different defaults,
     // but in many implementations it's just an alias.
     ls::execute_with_context(args, ctx)
 }

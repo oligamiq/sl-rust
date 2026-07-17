@@ -1,10 +1,10 @@
+use crate::IoContext;
 use clap::Parser;
 use colored::*;
 use std::ffi::OsString;
 use std::fs;
-use std::path::{Path, PathBuf};
 use std::io::Write;
-use crate::IoContext;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(name = "tree", version, about = "Recursive directory listing.", long_about = None)]
@@ -55,7 +55,8 @@ where
     }
 
     let root = &args.path;
-    writeln!(ctx.stdout, "{}", root.display().to_string().blue().bold()).map_err(|e| e.to_string())?;
+    writeln!(ctx.stdout, "{}", root.display().to_string().blue().bold())
+        .map_err(|e| e.to_string())?;
 
     let mut stats = TreeStats {
         directories: 0,
@@ -68,7 +69,8 @@ where
         ctx.stdout,
         "\n{} directories, {} files",
         stats.directories, stats.files
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

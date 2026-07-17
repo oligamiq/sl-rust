@@ -1,8 +1,8 @@
+use lazy_static::lazy_static;
 use std::env;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use lazy_static::lazy_static;
 
 // Cargo runs tests in parallel by default.
 // Modifying environment variables in a multithreaded test environment
@@ -15,8 +15,14 @@ lazy_static! {
 /// Helper function to parse terminal size from env vars exactly like `terminal::sys::init`
 /// for the WASI target in `sl-rust`.
 fn get_terminal_size_from_env() -> (u16, u16) {
-    let w = env::var("COLUMNS").ok().and_then(|v| v.parse().ok()).unwrap_or(80);
-    let h = env::var("LINES").ok().and_then(|v| v.parse().ok()).unwrap_or(24);
+    let w = env::var("COLUMNS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(80);
+    let h = env::var("LINES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(24);
     (w, h)
 }
 
@@ -92,7 +98,7 @@ fn test_env_vars_across_threads_race_condition() {
 
     // While the other thread is reading, we modify the env vars.
     // This demonstrates the race condition. The reader might catch
-    // intermediate states if env var updating wasn't atomic (which it isn't at OS level usually, 
+    // intermediate states if env var updating wasn't atomic (which it isn't at OS level usually,
     // though std::env tries to be safe, set_var is unsafe for a reason in 1.80+).
     thread::sleep(Duration::from_millis(10));
     unsafe {
@@ -128,7 +134,7 @@ fn test_env_vars_observed_by_waiting_thread() {
     // We use barriers to strictly control the timing of execution between the main and spawned thread.
     let barrier_read_initial = Arc::new(Barrier::new(2));
     let barrier_modified = Arc::new(Barrier::new(2));
-    
+
     let b_read_initial = Arc::clone(&barrier_read_initial);
     let b_modified = Arc::clone(&barrier_modified);
 
@@ -153,7 +159,7 @@ fn test_env_vars_observed_by_waiting_thread() {
     // Wait for the spawned thread to finish its initial read
     barrier_read_initial.wait();
 
-    // Step 2: Main thread modifies the environment variables. 
+    // Step 2: Main thread modifies the environment variables.
     // The spawned thread already exists and is currently waiting.
     unsafe {
         env::set_var("COLUMNS", "120");

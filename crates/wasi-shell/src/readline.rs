@@ -1235,7 +1235,7 @@ mod tests {
 
     #[test]
     fn test_run_loop_with_handle_parallel() {
-        use crate::{handle_parallel, ArcVecWriter, CommandRegistry};
+        use crate::{ArcVecWriter, CommandRegistry, handle_parallel};
         use std::sync::{Arc, Mutex};
 
         let registry = Arc::new(CommandRegistry::with_builtins());
@@ -1331,7 +1331,9 @@ mod tests {
         let mut reader = LineEditor::new(10);
         let mut input = Cursor::new("echo あ🦀\r".as_bytes().to_vec());
         let mut out = Vec::new();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
+        let result = reader
+            .read_line_from(&mut input, &mut out, "$ ", None)
+            .unwrap();
         assert_eq!(result, Some("echo あ🦀".to_string()));
     }
 
@@ -1341,7 +1343,9 @@ mod tests {
         let mut reader = LineEditor::new(10);
         let mut input = Cursor::new(format!("echo {family}\r").into_bytes());
         let mut out = Vec::new();
-        let result = reader.read_line_from(&mut input, &mut out, "$ ", None).unwrap();
+        let result = reader
+            .read_line_from(&mut input, &mut out, "$ ", None)
+            .unwrap();
         assert_eq!(result, Some(format!("echo {family}")));
     }
 

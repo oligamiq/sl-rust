@@ -93,9 +93,7 @@ fn main() {
         "whoami" => wasibox_core::utils::whoami::execute(util_args),
         #[cfg(feature = "yes")]
         "yes" => wasibox_core::utils::yes::execute(util_args),
-        _ => {
-            Err(format!("Unknown utility: {}", util_name))
-        }
+        _ => Err(format!("Unknown utility: {}", util_name)),
     };
 
     if let Err(e) = result {

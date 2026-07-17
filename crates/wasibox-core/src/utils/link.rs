@@ -30,7 +30,11 @@ where
     T: Into<OsString> + Clone,
 {
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
-    fs::hard_link(&args.target, &args.link)
-        .map_err(|e| format!("link: cannot create link {} to {}: {}", args.link, args.target, e))?;
+    fs::hard_link(&args.target, &args.link).map_err(|e| {
+        format!(
+            "link: cannot create link {} to {}: {}",
+            args.link, args.target, e
+        )
+    })?;
     Ok(())
 }

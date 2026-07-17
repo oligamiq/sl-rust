@@ -30,7 +30,7 @@ where
     T: Into<OsString> + Clone,
 {
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
-    
+
     // If multiple sources, dest must be a directory
     if args.source.len() > 1 {
         let dest_path = std::path::Path::new(&args.dest);
@@ -47,7 +47,8 @@ where
                 dest.push(name);
             }
         }
-        fs::rename(&src, &dest).map_err(|e| format!("mv: cannot move {} to {}: {}", src, dest.display(), e))?;
+        fs::rename(&src, &dest)
+            .map_err(|e| format!("mv: cannot move {} to {}: {}", src, dest.display(), e))?;
     }
     Ok(())
 }

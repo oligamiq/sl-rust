@@ -1,21 +1,22 @@
+use colored::*;
 use std::env;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use colored::*;
 use wasi_shell::{CommandRegistry, LineEditor, LoopAction, handle_parallel};
 
 fn main() {
     let registry = CommandRegistry::with_builtins();
     let cancel_token = wasibox_core::CancellationToken::new();
-    
+
     #[cfg(not(target_family = "wasm"))]
     {
         let ctrlc_token = cancel_token.clone();
         ctrlc::set_handler(move || {
             ctrlc_token.cancel();
-        }).expect("Error setting Ctrl-C handler");
+        })
+        .expect("Error setting Ctrl-C handler");
     }
 
     #[cfg(target_family = "wasm")]
@@ -24,7 +25,7 @@ fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if !args.is_empty() {
         let arc_registry = Arc::new(registry);
-        
+
         #[cfg(target_family = "wasm")]
         let stdin = Box::new(mux.subscribe());
         #[cfg(not(target_family = "wasm"))]
@@ -48,7 +49,7 @@ fn main() {
             cancel_token,
         );
         finished.store(true, Ordering::SeqCst);
-// ... (rest of main)
+        // ... (rest of main)
 
         let mut has_error = false;
         for res in results {
@@ -119,18 +120,10 @@ fn main() {
     };
 
     #[cfg(target_family = "wasm")]
-    let loop_res = reader.run_loop_with_stdin(
-        prompt_fn,
-        &handler,
-        cancel_token,
-        Box::new(mux.subscribe()),
-    );
+    let loop_res =
+        reader.run_loop_with_stdin(prompt_fn, &handler, cancel_token, Box::new(mux.subscribe()));
     #[cfg(not(target_family = "wasm"))]
-    let loop_res = reader.run_loop(
-        prompt_fn,
-        &handler,
-        cancel_token,
-    );
+    let loop_res = reader.run_loop(prompt_fn, &handler, cancel_token);
 
     if let Err(e) = loop_res {
         eprintln!("{}", format!("Input error: {}", e).red());

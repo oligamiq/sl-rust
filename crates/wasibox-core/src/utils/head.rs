@@ -1,9 +1,9 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "head", about = "Output the first part of files")]
@@ -36,16 +36,22 @@ where
     } else {
         for file_path in &args.files {
             if args.files.len() > 1 {
-                writeln!(ctx.stdout, "==> {} <==", file_path.display()).map_err(|e| e.to_string())?;
+                writeln!(ctx.stdout, "==> {} <==", file_path.display())
+                    .map_err(|e| e.to_string())?;
             }
-            let file = File::open(file_path).map_err(|e| format!("head: {}: {}", file_path.display(), e))?;
+            let file = File::open(file_path)
+                .map_err(|e| format!("head: {}: {}", file_path.display(), e))?;
             head_stream(BufReader::new(file), &mut ctx.stdout, args.lines)?;
         }
     }
     Ok(())
 }
 
-fn head_stream<R: BufRead, W: Write>(reader: R, writer: &mut W, lines: usize) -> Result<(), String> {
+fn head_stream<R: BufRead, W: Write>(
+    reader: R,
+    writer: &mut W,
+    lines: usize,
+) -> Result<(), String> {
     for (i, line) in reader.lines().enumerate() {
         if i >= lines {
             break;
@@ -55,7 +61,9 @@ fn head_stream<R: BufRead, W: Write>(reader: R, writer: &mut W, lines: usize) ->
             Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => break,
             Err(e) => return Err(e.to_string()),
         };
-        if writeln!(writer, "{}", line).is_err() { break; }
+        if writeln!(writer, "{}", line).is_err() {
+            break;
+        }
     }
     Ok(())
 }

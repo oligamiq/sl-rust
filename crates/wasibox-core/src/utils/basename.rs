@@ -2,8 +2,8 @@ use clap::Parser;
 use std::ffi::OsString;
 use std::path::Path;
 
-use std::io::Write;
 use crate::IoContext;
+use std::io::Write;
 
 #[derive(Parser)]
 #[command(name = "basename", about = "Strip directory and suffix from filenames")]
@@ -30,7 +30,8 @@ where
 {
     let args = Args::try_parse_from(args).map_err(|e| e.to_string())?;
     let path = Path::new(&args.name);
-    let mut base = path.file_name()
+    let mut base = path
+        .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "".to_string());
 

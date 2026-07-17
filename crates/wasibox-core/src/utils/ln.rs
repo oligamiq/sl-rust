@@ -55,12 +55,11 @@ where
         }
         #[cfg(target_os = "wasi")]
         {
-             // WASI support for symlinks depends on the host
-             return Err("ln -s is not fully supported on standard WASIp1".to_string());
+            // WASI support for symlinks depends on the host
+            return Err("ln -s is not fully supported on standard WASIp1".to_string());
         }
     } else {
-        fs::hard_link(&args.target, &args.link)
-            .map_err(|e| format!("ln: hard_link: {}", e))?;
+        fs::hard_link(&args.target, &args.link).map_err(|e| format!("ln: hard_link: {}", e))?;
     }
     Ok(())
 }

@@ -1,7 +1,7 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::io::Write;
-use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "seq", about = "Print a sequence of numbers")]
@@ -32,7 +32,8 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let raw_args: Vec<String> = args.into_iter()
+    let raw_args: Vec<String> = args
+        .into_iter()
         .map(|a| a.into().to_string_lossy().into_owned())
         .collect();
 
@@ -42,7 +43,8 @@ where
     //   seq FIRST LAST -> FIRST to LAST, step 1
     //   seq FIRST INCREMENT LAST -> FIRST to LAST, step INCREMENT
     //   seq -inf      -> 1 to infinity, step 1 (explicit)
-    let positional: Vec<&str> = raw_args.iter()
+    let positional: Vec<&str> = raw_args
+        .iter()
         .skip(1) // skip "seq"
         .filter(|a| !a.starts_with('-') || a.parse::<f64>().is_ok())
         .map(|s| s.as_str())
@@ -51,23 +53,29 @@ where
     let (first, increment, last): (f64, f64, Option<f64>) = match positional.len() {
         0 => (1.0, 1.0, None), // infinite from 1
         1 => {
-            let val = positional[0].parse::<f64>()
+            let val = positional[0]
+                .parse::<f64>()
                 .map_err(|_| format!("seq: invalid argument: '{}'", positional[0]))?;
             (1.0, 1.0, Some(val))
         }
         2 => {
-            let f = positional[0].parse::<f64>()
+            let f = positional[0]
+                .parse::<f64>()
                 .map_err(|_| format!("seq: invalid argument: '{}'", positional[0]))?;
-            let l = positional[1].parse::<f64>()
+            let l = positional[1]
+                .parse::<f64>()
                 .map_err(|_| format!("seq: invalid argument: '{}'", positional[1]))?;
             (f, 1.0, Some(l))
         }
         _ => {
-            let f = positional[0].parse::<f64>()
+            let f = positional[0]
+                .parse::<f64>()
                 .map_err(|_| format!("seq: invalid argument: '{}'", positional[0]))?;
-            let inc = positional[1].parse::<f64>()
+            let inc = positional[1]
+                .parse::<f64>()
                 .map_err(|_| format!("seq: invalid argument: '{}'", positional[1]))?;
-            let l = positional[2].parse::<f64>()
+            let l = positional[2]
+                .parse::<f64>()
                 .map_err(|_| format!("seq: invalid argument: '{}'", positional[2]))?;
             (f, inc, Some(l))
         }

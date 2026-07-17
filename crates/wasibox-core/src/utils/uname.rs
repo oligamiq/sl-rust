@@ -12,8 +12,8 @@ struct Args {
     #[arg(short = 'a')]
     all: bool,
 }
-use std::io::Write;
 use crate::IoContext;
+use std::io::Write;
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
 where
@@ -43,12 +43,20 @@ where
                 return Err("cannot get system name".to_string());
             }
             let name = name.assume_init();
-            
+
             if args.all || (!args.machine) {
-                output.push(CStr::from_ptr(name.sysname.as_ptr()).to_string_lossy().into_owned());
+                output.push(
+                    CStr::from_ptr(name.sysname.as_ptr())
+                        .to_string_lossy()
+                        .into_owned(),
+                );
             }
             if args.all || args.machine {
-                output.push(CStr::from_ptr(name.machine.as_ptr()).to_string_lossy().into_owned());
+                output.push(
+                    CStr::from_ptr(name.machine.as_ptr())
+                        .to_string_lossy()
+                        .into_owned(),
+                );
             }
         }
     }

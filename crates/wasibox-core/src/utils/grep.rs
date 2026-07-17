@@ -1,9 +1,9 @@
+use crate::IoContext;
 use clap::Parser;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use crate::IoContext;
 
 #[derive(Parser)]
 #[command(name = "grep", about = "Search for patterns in files")]
@@ -47,18 +47,31 @@ where
             .map_err(|e| format!("grep: invalid pattern: {}", e))?;
 
         if args.files.is_empty() {
-            grep_stream(BufReader::new(&mut ctx.stdin), &re, args.invert_match, None, &mut ctx.stdout)?;
+            grep_stream(
+                BufReader::new(&mut ctx.stdin),
+                &re,
+                args.invert_match,
+                None,
+                &mut ctx.stdout,
+            )?;
         } else {
             for file_path in &args.files {
-                let file = File::open(file_path).map_err(|e| format!("grep: {}: {}", file_path.display(), e))?;
+                let file = File::open(file_path)
+                    .map_err(|e| format!("grep: {}: {}", file_path.display(), e))?;
                 let label_str;
-                let label = if args.files.len() > 1 { 
+                let label = if args.files.len() > 1 {
                     label_str = file_path.to_string_lossy();
-                    Some(label_str.as_ref()) 
-                } else { 
-                    None 
+                    Some(label_str.as_ref())
+                } else {
+                    None
                 };
-                grep_stream(BufReader::new(file), &re, args.invert_match, label, &mut ctx.stdout)?;
+                grep_stream(
+                    BufReader::new(file),
+                    &re,
+                    args.invert_match,
+                    label,
+                    &mut ctx.stdout,
+                )?;
             }
         }
         Ok(())
@@ -71,7 +84,13 @@ where
 }
 
 #[cfg(feature = "grep")]
-fn grep_stream<R: BufRead, W: Write>(reader: R, re: &regex::Regex, invert: bool, label: Option<&str>, mut out: W) -> Result<(), String> {
+fn grep_stream<R: BufRead, W: Write>(
+    reader: R,
+    re: &regex::Regex,
+    invert: bool,
+    label: Option<&str>,
+    mut out: W,
+) -> Result<(), String> {
     for line in reader.lines() {
         let line = match line {
             Ok(l) => l,
@@ -81,9 +100,13 @@ fn grep_stream<R: BufRead, W: Write>(reader: R, re: &regex::Regex, invert: bool,
         let matched = re.is_match(&line);
         if matched ^ invert {
             if let Some(l) = label {
-                if write!(out, "{}:", l).is_err() { break; }
+                if write!(out, "{}:", l).is_err() {
+                    break;
+                }
             }
-            if writeln!(out, "{}", line).is_err() { break; }
+            if writeln!(out, "{}", line).is_err() {
+                break;
+            }
         }
     }
     Ok(())

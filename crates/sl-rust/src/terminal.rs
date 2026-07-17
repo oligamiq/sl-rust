@@ -18,34 +18,28 @@ pub struct Terminal {
 #[cfg(not(target_os = "wasi"))]
 mod sys {
     use super::*;
-    use crossterm::{
-        execute,
-        terminal::{EnterAlternateScreen, LeaveAlternateScreen, Clear, ClearType, enable_raw_mode, disable_raw_mode},
-        cursor::{Hide, Show},
-        event::{poll, read, Event},
-    };
     use crossterm::event::KeyCode;
+    use crossterm::{
+        cursor::{Hide, Show},
+        event::{Event, poll, read},
+        execute,
+        terminal::{
+            Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
+            enable_raw_mode,
+        },
+    };
 
     pub fn init() -> io::Result<(u16, u16)> {
         enable_raw_mode()?;
         let (w, h) = crossterm::terminal::size()?;
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            EnterAlternateScreen,
-            Hide,
-            Clear(ClearType::All)
-        )?;
+        execute!(stdout, EnterAlternateScreen, Hide, Clear(ClearType::All))?;
         Ok((w, h))
     }
 
     pub fn cleanup() -> io::Result<()> {
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            Show,
-            LeaveAlternateScreen
-        )?;
+        execute!(stdout, Show, LeaveAlternateScreen)?;
         disable_raw_mode()?;
         Ok(())
     }
@@ -62,7 +56,11 @@ mod sys {
                         KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                             action = InputAction::Quit;
                         }
-                        KeyCode::Char('c') if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                        KeyCode::Char('c')
+                            if key_event
+                                .modifiers
+                                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                        {
                             action = InputAction::Quit;
                         }
                         _ => {}
@@ -79,8 +77,14 @@ mod sys {
     use super::*;
 
     pub fn init() -> io::Result<(u16, u16)> {
-        let w = std::env::var("COLUMNS").ok().and_then(|v| v.parse().ok()).unwrap_or(80);
-        let h = std::env::var("LINES").ok().and_then(|v| v.parse().ok()).unwrap_or(24);
+        let w = std::env::var("COLUMNS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(80);
+        let h = std::env::var("LINES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(24);
 
         let mut stdout = io::stdout();
         write!(stdout, "\x1B[?1049h\x1B[?25l\x1B[2J")?;

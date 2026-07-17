@@ -1,8 +1,8 @@
-use std::ffi::OsString;
 use std::env;
+use std::ffi::OsString;
 
-use std::io::Write;
 use crate::IoContext;
+use std::io::Write;
 
 pub fn execute<I, T>(args: I) -> Result<(), String>
 where
@@ -22,7 +22,7 @@ where
     let user = env::var("USER")
         .or_else(|_| env::var("USERNAME"))
         .unwrap_or_else(|_| "wasi-user".to_string());
-    
+
     writeln!(ctx.stdout, "{}", user).map_err(|e| e.to_string())?;
     Ok(())
 }
