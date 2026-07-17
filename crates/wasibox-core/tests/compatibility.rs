@@ -4,6 +4,7 @@ use std::fs;
 use std::process::Command;
 use tempfile::tempdir;
 
+#[cfg(windows)]
 const BUSYBOX_DIR: &str = r"C:\bin\busybox";
 
 fn run_ours(args: &[&str]) -> String {
@@ -15,12 +16,30 @@ fn run_ours(args: &[&str]) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
+#[cfg(windows)]
 fn run_busybox(util: &str, args: &[&str]) -> String {
     let exe = format!(r"{}\{}.exe", BUSYBOX_DIR, util);
     let output = Command::new(&exe)
         .args(args)
         .output()
         .expect(&format!("Failed to run busybox {}", util));
+    String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
+#[cfg(not(windows))]
+fn run_busybox(util: &str, args: &[&str]) -> String {
+    let output = Command::new("busybox")
+        .arg(util)
+        .args(args)
+        .output()
+        .unwrap_or_else(|e| panic!("Failed to run busybox {util}: {e}"));
+
+    assert!(
+        output.status.success(),
+        "busybox {util} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
@@ -76,12 +95,27 @@ fn test_mkdir_p_compatibility() {
 
 #[test]
 fn test_uname_a_compatibility() {
-    let _bb_out = run_busybox("uname", &["-a"]);
+    let bb_out = run_busybox("uname", &["-a"]);
     let our_out = run_ours(&["uname", "-a"]);
 
-    // Both should contain 'Windows' or 'x86_64' on this system
-    assert!(our_out.contains("Windows") || our_out.contains("WASI"));
-    assert!(our_out.contains("x86_64") || our_out.contains("i686"));
+    assert!(!bb_out.trim().is_empty());
+    assert!(!our_out.trim().is_empty());
+    assert!(
+        our_out.contains(std::env::consts::ARCH),
+        "uname output does not contain architecture: {our_out:?}"
+    );
+
+    #[cfg(target_os = "linux")]
+    assert!(
+        our_out.contains("Linux"),
+        "uname output does not contain Linux: {our_out:?}"
+    );
+
+    #[cfg(windows)]
+    assert!(
+        our_out.contains("Windows"),
+        "uname output does not contain Windows: {our_out:?}"
+    );
 }
 
 #[test]
